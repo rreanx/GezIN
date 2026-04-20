@@ -268,6 +268,80 @@ function findRoute(city: string): Route | null {
   return ROUTES[toKey(city)] ?? null;
 }
 
+// ─── Regions data ────────────────────────────────────────────────────
+const REGIONS: { name: string; emoji: string; cities: { name: string; img?: string }[] }[] = [
+  {
+    name: "Marmara", emoji: "🌉",
+    cities: [
+      { name: "İstanbul",  img: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=200&q=80" },
+      { name: "Bursa",     img: "https://images.unsplash.com/photo-1562401017-4e43a2c569e0?w=200&q=80" },
+      { name: "Edirne",    img: "https://images.unsplash.com/photo-1600349612854-a38838c85834?w=200&q=80" },
+      { name: "Çanakkale" },
+      { name: "Sakarya" },
+      { name: "Kocaeli" },
+    ],
+  },
+  {
+    name: "Ege", emoji: "🏖️",
+    cities: [
+      { name: "İzmir",          img: "/__mockup/images/izmir.png" },
+      { name: "Muğla",          img: "https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=200&q=80" },
+      { name: "Aydın" },
+      { name: "Denizli",        img: "https://images.unsplash.com/photo-1568849676085-51415703900f?w=200&q=80" },
+      { name: "Afyonkarahisar" },
+      { name: "Manisa" },
+    ],
+  },
+  {
+    name: "Akdeniz", emoji: "☀️",
+    cities: [
+      { name: "Antalya",  img: "/__mockup/images/antalya.png" },
+      { name: "Mersin",   img: "https://images.unsplash.com/photo-1620963376898-ef7a01a05edd?w=200&q=80" },
+      { name: "Adana" },
+      { name: "Hatay" },
+      { name: "Isparta" },
+      { name: "Burdur" },
+    ],
+  },
+  {
+    name: "İç Anadolu", emoji: "🏔️",
+    cities: [
+      { name: "Ankara",    img: "/__mockup/images/ankara.png" },
+      { name: "Konya",     img: "https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=200&q=80" },
+      { name: "Eskişehir", img: "/__mockup/images/eskisehir.png" },
+      { name: "Nevşehir",  img: "https://images.unsplash.com/photo-1641128324972-af3212f0f6bd?w=200&q=80" },
+      { name: "Sivas" },
+      { name: "Kayseri" },
+    ],
+  },
+  {
+    name: "Karadeniz", emoji: "🌿",
+    cities: [
+      { name: "Samsun",  img: "/__mockup/images/samsun.png" },
+      { name: "Trabzon", img: "https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=200&q=80" },
+      { name: "Rize",    img: "https://images.unsplash.com/photo-1598935888738-cd2622bcd437?w=200&q=80" },
+      { name: "Artvin" },
+      { name: "Sinop" },
+      { name: "Amasya" },
+      { name: "Bolu" },
+      { name: "Karabük" },
+      { name: "Çorum" },
+    ],
+  },
+  {
+    name: "Güneydoğu & Doğu", emoji: "🏛️",
+    cities: [
+      { name: "Gaziantep",  img: "https://images.unsplash.com/photo-1568695122048-fba07a580b88?w=200&q=80" },
+      { name: "Erzurum" },
+      { name: "Şanlıurfa" },
+      { name: "Mardin",     img: "https://images.unsplash.com/photo-1601778614764-0b8cdd99aeb6?w=200&q=80" },
+      { name: "Kars" },
+      { name: "Van" },
+      { name: "Diyarbakır" },
+    ],
+  },
+];
+
 // ─── City + featured lists ────────────────────────────────────────────
 const CITY_CIRCLES = [
   { name: "Ankara",    image: "/__mockup/images/ankara.png" },
@@ -297,7 +371,7 @@ function ScreenSlide({ children, id, direction }: { children: React.ReactNode; i
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────
-type Screen = "home" | "loading" | "guide" | "saved";
+type Screen = "home" | "loading" | "guide" | "saved" | "regions";
 
 export function GezIN() {
   const [screen, setScreen]       = useState<Screen>("home");
@@ -309,6 +383,7 @@ export function GezIN() {
   const [saved, setSaved]         = useState<string[]>([]);
 
   const goTo = (city: string) => {
+    setSearch(city);
     setPending(city);
     setDirection("forward");
     setScreen("loading");
@@ -320,13 +395,10 @@ export function GezIN() {
     }, 1400);
   };
 
-  const goBack = () => {
-    setDirection("back");
-    setScreen("home");
-  };
-
-  const goHome = () => { setDirection("back"); setScreen("home"); };
+  const goBack  = () => { setDirection("back");    setScreen("home"); };
+  const goHome  = () => { setDirection("back");    setScreen("home"); };
   const goSaved = () => { setDirection("forward"); setScreen("saved"); };
+  const goRegions = () => { setDirection("forward"); setScreen("regions"); };
 
   const toggleSave = (city: string) => {
     setSaved((prev) =>
@@ -346,7 +418,7 @@ export function GezIN() {
 
       {screen === "home" && (
         <ScreenSlide id="home" direction={direction}>
-          <HomeScreen search={search} onSearchChange={setSearch} onOpen={goTo} onSaved={goSaved} />
+          <HomeScreen search={search} onSearchChange={setSearch} onOpen={goTo} onSaved={goSaved} onRegions={goRegions} />
         </ScreenSlide>
       )}
 
@@ -373,6 +445,12 @@ export function GezIN() {
       {screen === "saved" && (
         <ScreenSlide id="saved" direction={direction}>
           <SavedScreen saved={saved} onOpen={goTo} onHome={goHome} onSaved={goSaved} />
+        </ScreenSlide>
+      )}
+
+      {screen === "regions" && (
+        <ScreenSlide id="regions" direction={direction}>
+          <RegionsScreen onOpen={goTo} onBack={goHome} onSaved={goSaved} />
         </ScreenSlide>
       )}
     </div>
@@ -406,11 +484,12 @@ function LoadingScreen({ city }: { city: string }) {
 }
 
 // ─── Home screen ──────────────────────────────────────────────────────
-function HomeScreen({ search, onSearchChange, onOpen, onSaved }: {
+function HomeScreen({ search, onSearchChange, onOpen, onSaved, onRegions }: {
   search: string;
   onSearchChange: (v: string) => void;
   onOpen: (city: string) => void;
   onSaved: () => void;
+  onRegions: () => void;
 }) {
   return (
     <div style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
@@ -500,7 +579,7 @@ function HomeScreen({ search, onSearchChange, onOpen, onSaved }: {
       <div style={{ margin: "18px 24px 0", height: 1, backgroundColor: "#F3F3F3" }} />
 
       {/* Popüler Rotalar */}
-      <SectionHeader title="Popüler Rotalar" />
+      <SectionHeader title="Popüler Rotalar" onAll={onRegions} />
       <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 12 }}>
         {FEATURED.map((p) => (
           <div key={p.name} onClick={() => onOpen(p.name)} style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.07)", border: "1px solid #F3F3F3", cursor: "pointer" }}>
@@ -757,11 +836,146 @@ function StatusBar() {
   );
 }
 
-function SectionHeader({ title }: { title: string }) {
+function SectionHeader({ title, onAll }: { title: string; onAll?: () => void }) {
   return (
     <div style={{ padding: "18px 24px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <span style={{ fontSize: 17, fontWeight: 700, color: "#111" }}>{title}</span>
-      <span style={{ fontSize: 13, color: ORANGE, fontWeight: 600, display: "flex", alignItems: "center", gap: 2 }}>Tümünü Gör <ChevronRight size={14} /></span>
+      <span onClick={onAll} style={{ fontSize: 13, color: ORANGE, fontWeight: 600, display: "flex", alignItems: "center", gap: 2, cursor: onAll ? "pointer" : "default" }}>
+        Tümünü Gör <ChevronRight size={14} />
+      </span>
+    </div>
+  );
+}
+
+// ─── Regions screen ───────────────────────────────────────────────────
+function RegionsScreen({ onOpen, onBack, onSaved }: {
+  onOpen: (city: string) => void;
+  onBack: () => void;
+  onSaved: () => void;
+}) {
+  const [openRegion, setOpenRegion] = useState<string | null>(null);
+
+  const toggle = (name: string) =>
+    setOpenRegion((prev) => (prev === name ? null : name));
+
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <StatusBar />
+
+      {/* Header */}
+      <div style={{ padding: "10px 24px 14px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
+        <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 19, border: "none", backgroundColor: "#F7F7F7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          <ArrowLeft size={18} color="#333" />
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: "#AAA", fontWeight: 500 }}>GezIN</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#111", lineHeight: 1.2 }}>
+            Bölgesel <span style={{ color: ORANGE }}>Keşif</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Accordion list */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 0 24px" }}>
+        {REGIONS.map((region, ri) => {
+          const isOpen = openRegion === region.name;
+          return (
+            <div key={region.name} style={{ animation: `fade-in 0.3s ease ${ri * 0.05}s both` }}>
+              {/* Region row */}
+              <div
+                onClick={() => toggle(region.name)}
+                style={{
+                  padding: "16px 24px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  cursor: "pointer",
+                  backgroundColor: isOpen ? ORANGE_LIGHT : "transparent",
+                  borderBottom: isOpen ? "none" : "1px solid #F5F5F5",
+                  transition: "background-color 0.2s",
+                }}
+              >
+                <div style={{
+                  width: 42, height: 42, borderRadius: 21, flexShrink: 0,
+                  backgroundColor: isOpen ? ORANGE : "#F7F7F7",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 20,
+                  transition: "background-color 0.2s",
+                  boxShadow: isOpen ? `0 4px 12px rgba(230,126,34,0.25)` : "none",
+                }}>
+                  {region.emoji}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: isOpen ? ORANGE : "#111" }}>{region.name}</div>
+                  <div style={{ fontSize: 12, color: "#AAA", marginTop: 1 }}>{region.cities.length} şehir</div>
+                </div>
+                <div style={{
+                  transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                  transition: "transform 0.25s",
+                  color: isOpen ? ORANGE : "#CCC",
+                }}>
+                  <ChevronRight size={18} />
+                </div>
+              </div>
+
+              {/* Cities grid */}
+              {isOpen && (
+                <div style={{
+                  padding: "14px 20px 18px",
+                  backgroundColor: ORANGE_LIGHT,
+                  borderBottom: "1px solid #F5F5F5",
+                  animation: "fade-in 0.25s ease forwards",
+                }}>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "14px 8px",
+                  }}>
+                    {region.cities.map((city) => (
+                      <div
+                        key={city.name}
+                        onClick={() => onOpen(city.name)}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer" }}
+                      >
+                        <div style={{
+                          width: 64, height: 64, borderRadius: 32,
+                          overflow: "hidden",
+                          border: `2px solid ${ORANGE}`,
+                          boxShadow: "0 3px 10px rgba(230,126,34,0.2)",
+                          backgroundColor: ORANGE,
+                        }}>
+                          {city.img ? (
+                            <img
+                              src={city.img}
+                              alt={city.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              onError={(e) => {
+                                const t = e.target as HTMLImageElement;
+                                t.style.display = "none";
+                                if (t.parentElement) {
+                                  t.parentElement.style.background = `linear-gradient(135deg,${ORANGE},${ORANGE_DARK})`;
+                                  t.parentElement.innerHTML = `<span style="color:white;font-size:22px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📍</span>`;
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg,${ORANGE},${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <MapPin size={22} color="white" />
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#111", textAlign: "center", lineHeight: 1.3 }}>{city.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <BottomNav active={1} onHome={onBack} onSaved={onSaved} />
     </div>
   );
 }
