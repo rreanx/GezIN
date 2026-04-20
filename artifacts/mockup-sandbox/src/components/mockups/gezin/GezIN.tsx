@@ -1,9 +1,91 @@
-import { useState, useRef, useEffect } from "react";
-import { Search, MapPin, Heart, Home, Compass, User, Bell, Star, ChevronRight, Bookmark, ArrowLeft, Send, Loader2, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Search, MapPin, Heart, Home, Compass, User, Bell, Star, ChevronRight, Bookmark, ArrowLeft, Send, Sparkles } from "lucide-react";
 
-const ORANGE = "#F28444";
-const ORANGE_LIGHT = "#FFF3EB";
+const ORANGE = "#E67E22";
+const ORANGE_LIGHT = "#FEF3E8";
+const ORANGE_DARK = "#C96A10";
 
+// ─── Static route data ──────────────────────────────────────────────
+type Day = {
+  title: string;
+  items: { icon: string; text: string; highlight?: string }[];
+};
+
+type RouteData = {
+  city: string;
+  days: Day[];
+};
+
+const STATIC_ROUTES: Record<string, RouteData> = {
+  samsun: {
+    city: "Samsun",
+    days: [
+      {
+        title: "1. Gün — Bandırma Vapuru & Atakum Sahili",
+        items: [
+          { icon: "📍", text: "Sabah erkenden ", highlight: "Bandırma Vapuru Müzesi", text2: "'ni ziyaret et — Kurtuluş Savaşı'nın başlangıç noktası, tarihe adım atmak gibi." },
+          { icon: "📸", text: "Öğleden sonra ", highlight: "Atakum Sahili", text2: "boyunca yürüyüş yap, yürüyüş parkurları harika manzara sunuyor." },
+          { icon: "🍽️", text: "Akşam sahil restoranlarında ", highlight: "Samsun pilavı ve hamsi tava", text2: " dene — balık burada efsane!" },
+        ],
+      },
+      {
+        title: "2. Gün — Amisos Tepesi & Kızılırmak Deltası",
+        items: [
+          { icon: "📍", text: "Sabah ", highlight: "Amisos Tepesi", text2: "'ne çık — antik tümülüs ve şehrin panoramik manzarası seni bekliyor." },
+          { icon: "📸", text: "Öğle sonrası ", highlight: "Kızılırmak Deltası Kuş Cenneti", text2: "'ni keşfet — yüzlerce kuş türü, doğa fotoğrafçıları için cennet." },
+          { icon: "🍽️", text: "Akşam şehir merkezinde ", highlight: "Samsun kebabı ve yöresel tatlılar", text2: " için ünlü lokantalara uğra." },
+        ],
+      },
+      {
+        title: "3. Gün — Samsun Pidesi & Stadyum Turu",
+        items: [
+          { icon: "🍽️", text: "Sabah mutlaka ", highlight: "Samsun pidesi", text2: " ye — kaşarlı, tereyağlı, fırından yeni çıkmış. Yemeden gitme!" },
+          { icon: "📍", text: "Öğleden sonra ", highlight: "Samsun 19 Mayıs Stadyumu", text2: " çevresinde tur at, büyük parkta dinlen." },
+          { icon: "📸", text: "Akşam ", highlight: "Saat Kulesi ve çarşı", text2: " bölgesinde tarihi dokuyu yakala, hediyelik alışverişini tamamla." },
+        ],
+      },
+    ],
+  },
+  ankara: {
+    city: "Ankara",
+    days: [
+      {
+        title: "1. Gün — Anıtkabir & Atatürk'ün izi",
+        items: [
+          { icon: "📍", text: "Sabah ", highlight: "Anıtkabir", text2: "'i ziyaret et — Türkiye'nin en önemli anıtı, derin bir his bırakıyor." },
+          { icon: "📸", text: "Öğleden sonra yakınındaki ", highlight: "Anadolu Medeniyetleri Müzesi", text2: "'ne geç — dünyanın en iyi müzelerinden biri." },
+          { icon: "🍽️", text: "Akşam ", highlight: "Kızılay meydanı", text2: " çevresinde Ankara'nın sevilen kebapçılarından birinde ", highlight2: "Ankara tava", text2b: " dene." },
+        ],
+      },
+      {
+        title: "2. Gün — Ankara Kalesi & Tarihi Çarşı",
+        items: [
+          { icon: "📍", text: "Sabah ", highlight: "Ankara Kalesi", text2: "'ne çık — sur duvarları üzerinden tüm şehri gör, tarihi Hisar semtini gez." },
+          { icon: "📸", text: "Kale içindeki dar taş sokaklarda ", highlight: "geleneksel el sanatları", text2: " atölyelerini ve bakır ustalarını keşfet." },
+          { icon: "🍽️", text: "Öğle yemeğinde yakındaki restoranlarda ", highlight: "Ankara simidi ve kavurma", text2: " mutlaka dene." },
+        ],
+      },
+      {
+        title: "3. Gün — Kuğulu Park & Modern Ankara",
+        items: [
+          { icon: "📍", text: "Sabah sakin ", highlight: "Kuğulu Park", text2: "'ta yürüyüş yap — şehrin ortasında nefes alan yeşil bir cennet." },
+          { icon: "📸", text: "Öğleden sonra ", highlight: "Tunalı Hilmi Caddesi", text2: " ve Kavaklıdere'de kafeler, butik dükkanlar, Ankara'nın modern yüzü." },
+          { icon: "🍽️", text: "Son akşam için ", highlight: "Gaziosmanpaşa'da fine dining", text2: " — başkentin en iyi restoranları burada seni bekliyor." },
+        ],
+      },
+    ],
+  },
+};
+
+function getRoute(cityName: string): RouteData | null {
+  const key = cityName.toLowerCase().replace("i̇", "i").replace("ı", "i").replace("ş", "s").replace("ğ", "g").replace("ü", "u").replace("ö", "o").replace("ç", "c");
+  return STATIC_ROUTES[key] ?? null;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────
+type Screen = "home" | "guide";
+
+// ─── City list ───────────────────────────────────────────────────────
 const cities = [
   { name: "Ankara", image: "/__mockup/images/ankara.png" },
   { name: "İstanbul", image: "/__mockup/images/istanbul.png" },
@@ -14,218 +96,54 @@ const cities = [
 ];
 
 const featuredPlaces = [
-  {
-    name: "Kapadokya",
-    subtitle: "Nevşehir, Türkiye",
-    image: "https://images.unsplash.com/photo-1641128324972-af3212f0f6bd?w=400&q=80",
-    rating: "4.9",
-    reviews: "2.4k",
-    tag: "Doğa",
-  },
-  {
-    name: "Pamukkale",
-    subtitle: "Denizli, Türkiye",
-    image: "https://images.unsplash.com/photo-1568849676085-51415703900f?w=400&q=80",
-    rating: "4.8",
-    reviews: "1.8k",
-    tag: "Tarih",
-  },
+  { name: "Kapadokya", subtitle: "Nevşehir", image: "https://images.unsplash.com/photo-1641128324972-af3212f0f6bd?w=400&q=80", rating: "4.9", reviews: "2.4k", tag: "Doğa" },
+  { name: "Pamukkale", subtitle: "Denizli", image: "https://images.unsplash.com/photo-1568849676085-51415703900f?w=400&q=80", rating: "4.8", reviews: "1.8k", tag: "Tarih" },
 ];
 
-function SimpleMarkdown({ text }: { text: string }) {
-  const lines = text.split("\n");
-  const elements: React.ReactNode[] = [];
-  let key = 0;
-
-  for (const line of lines) {
-    if (line.startsWith("## ")) {
-      elements.push(
-        <div key={key++} style={{ marginTop: 20, marginBottom: 10 }}>
-          <div style={{
-            fontSize: 17,
-            fontWeight: 800,
-            color: "#111",
-            borderLeft: `3px solid ${ORANGE}`,
-            paddingLeft: 10,
-            lineHeight: 1.3,
-          }}>
-            {line.replace("## ", "")}
-          </div>
-        </div>
-      );
-    } else if (line.startsWith("### ")) {
-      elements.push(
-        <div key={key++} style={{ marginTop: 12, marginBottom: 6 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: ORANGE }}>
-            {line.replace("### ", "")}
-          </div>
-        </div>
-      );
-    } else if (line.startsWith("**") && line.endsWith("**")) {
-      elements.push(
-        <div key={key++} style={{ marginTop: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>
-            {line.replace(/\*\*/g, "")}
-          </span>
-        </div>
-      );
-    } else if (line.startsWith("- ")) {
-      const content = line.replace("- ", "");
-      const parts = content.split(/\*\*(.*?)\*\*/g);
-      elements.push(
-        <div key={key++} style={{ display: "flex", gap: 6, marginBottom: 4, paddingLeft: 4 }}>
-          <span style={{ color: ORANGE, fontWeight: 700, fontSize: 13, flexShrink: 0 }}>•</span>
-          <span style={{ fontSize: 13, color: "#444", lineHeight: 1.5 }}>
-            {parts.map((part, i) =>
-              i % 2 === 1 ? <strong key={i}>{part}</strong> : part
-            )}
-          </span>
-        </div>
-      );
-    } else if (line.trim() === "") {
-      elements.push(<div key={key++} style={{ height: 4 }} />);
-    } else {
-      const parts = line.split(/\*\*(.*?)\*\*/g);
-      if (parts.length > 1 || line.trim()) {
-        elements.push(
-          <p key={key++} style={{ fontSize: 13, color: "#555", lineHeight: 1.6, margin: "2px 0" }}>
-            {parts.map((part, i) =>
-              i % 2 === 1 ? <strong key={i} style={{ color: "#333" }}>{part}</strong> : part
-            )}
-          </p>
-        );
-      }
-    }
-  }
-
-  return <>{elements}</>;
-}
-
-type Screen = "home" | "guide";
-
+// ─── Root component ───────────────────────────────────────────────────
 export function GezIN() {
   const [screen, setScreen] = useState<Screen>("home");
   const [searchValue, setSearchValue] = useState("");
-  const [guideCity, setGuideCity] = useState("");
-  const [guideText, setGuideText] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeRoute, setActiveRoute] = useState<RouteData | null>(null);
+  const [unknownCity, setUnknownCity] = useState("");
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const openCity = (cityName: string) => {
+    const route = getRoute(cityName);
+    if (route) {
+      setActiveRoute(route);
+      setUnknownCity("");
+    } else {
+      setActiveRoute(null);
+      setUnknownCity(cityName);
     }
-  }, [guideText]);
-
-  const startGuide = async (city: string) => {
-    if (!city.trim()) return;
-    setGuideCity(city.trim());
-    setGuideText("");
-    setError("");
-    setIsLoading(true);
     setScreen("guide");
-
-    try {
-      const res = await fetch("/api/gezin/guide", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city: city.trim() }),
-      });
-
-      if (!res.ok || !res.body) {
-        throw new Error("Sunucu hatası");
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const payload = JSON.parse(line.slice(6));
-            if (payload.done) {
-              setIsLoading(false);
-            } else if (payload.error) {
-              setError(payload.error);
-              setIsLoading(false);
-            } else if (payload.content) {
-              setGuideText((prev) => prev + payload.content);
-            }
-          } catch {}
-        }
-      }
-    } catch (err) {
-      setError("Bağlantı hatası oluştu. Lütfen tekrar dene.");
-      setIsLoading(false);
-    }
-  };
-
-  const handleSearchSubmit = () => {
-    if (searchValue.trim()) {
-      startGuide(searchValue);
-    }
-  };
-
-  const handleCityClick = (cityName: string) => {
-    startGuide(cityName);
   };
 
   return (
     <div style={{
-      width: 390,
-      height: 844,
+      width: 390, height: 844,
       backgroundColor: "#FFFFFF",
       fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
       overflow: "hidden",
-      position: "relative",
       display: "flex",
       flexDirection: "column",
     }}>
-      {screen === "home" ? (
-        <HomeScreen
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          onSearchSubmit={handleSearchSubmit}
-          onCityClick={handleCityClick}
-        />
-      ) : (
-        <GuideScreen
-          city={guideCity}
-          text={guideText}
-          isLoading={isLoading}
-          error={error}
-          scrollRef={scrollRef}
-          onBack={() => setScreen("home")}
-          onRetry={() => startGuide(guideCity)}
-        />
-      )}
+      {screen === "home"
+        ? <HomeScreen searchValue={searchValue} onSearchChange={setSearchValue} onOpen={openCity} />
+        : <GuideScreen route={activeRoute} unknownCity={unknownCity} onBack={() => setScreen("home")} />}
     </div>
   );
 }
 
-function HomeScreen({
-  searchValue,
-  onSearchChange,
-  onSearchSubmit,
-  onCityClick,
-}: {
+// ─── Home screen ──────────────────────────────────────────────────────
+function HomeScreen({ searchValue, onSearchChange, onOpen }: {
   searchValue: string;
   onSearchChange: (v: string) => void;
-  onSearchSubmit: () => void;
-  onCityClick: (city: string) => void;
+  onOpen: (city: string) => void;
 }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-      {/* Status Bar */}
+      {/* Status bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px 0", fontSize: 12, fontWeight: 600, color: "#111" }}>
         <span>9:41</span>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -235,7 +153,7 @@ function HomeScreen({
             <rect x="9" y="0" width="3" height="12" rx="1" fill="#111" />
             <rect x="13.5" y="0" width="3" height="12" rx="1" fill="#111" opacity="0.3" />
           </svg>
-          <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px 1px", display: "flex", alignItems: "center" }}>
+          <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px", display: "flex", alignItems: "center" }}>
             <div style={{ width: "75%", height: "100%", borderRadius: 2, backgroundColor: "#111" }} />
           </div>
         </div>
@@ -258,47 +176,44 @@ function HomeScreen({
             <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ORANGE, position: "absolute", top: 9, right: 9, border: "1.5px solid white" }} />
           </div>
           <div style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden", border: `2px solid ${ORANGE}` }}>
-            <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${ORANGE} 0%, #E06010 100%)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <User size={20} color="white" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Guide Banner */}
-      <div style={{ margin: "20px 24px 0", borderRadius: 18, background: `linear-gradient(135deg, ${ORANGE} 0%, #E06010 100%)`, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 6px 24px rgba(242,132,68,0.28)" }}>
+      {/* AI Guide banner */}
+      <div style={{ margin: "18px 24px 0", borderRadius: 20, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, padding: "15px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: `0 6px 24px rgba(230,126,34,0.28)` }}>
         <div style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Sparkles size={22} color="white" />
         </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "white", lineHeight: 1.2 }}>Yapay Zeka Rehberin</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>Bir şehir yaz, rota oluşturalım!</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>Yapay Zeka Rehberin</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>Şehre tıkla, rotanı anında gör!</div>
         </div>
       </div>
 
-      {/* Search Box */}
+      {/* Search */}
       <div style={{ padding: "16px 24px 0" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, backgroundColor: "#F7F7F7", borderRadius: 18, padding: "14px 18px", border: "1.5px solid #F0F0F0" }}>
           <Search size={20} color={ORANGE} strokeWidth={2.5} />
           <input
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onSearchSubmit()}
+            onKeyDown={(e) => e.key === "Enter" && searchValue.trim() && onOpen(searchValue.trim())}
             placeholder="Nereyi gezinmek istersin?"
             style={{ fontSize: 15, color: "#333", flex: 1, background: "none", border: "none", outline: "none", fontFamily: "inherit" }}
           />
-          {searchValue && (
-            <button
-              onClick={onSearchSubmit}
-              style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: ORANGE, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer", flexShrink: 0 }}
-            >
+          {searchValue.trim() && (
+            <button onClick={() => onOpen(searchValue.trim())} style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: ORANGE, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer", flexShrink: 0 }}>
               <Send size={15} color="white" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Quick Tags */}
+      {/* Tags */}
       <div style={{ padding: "14px 24px 0", display: "flex", gap: 8 }}>
         {["Tümü", "Doğa", "Tarih", "Sahil", "Dağ"].map((tag, i) => (
           <div key={tag} style={{ padding: "7px 16px", borderRadius: 20, backgroundColor: i === 0 ? ORANGE : "#F7F7F7", color: i === 0 ? "white" : "#666", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" }}>
@@ -307,7 +222,7 @@ function HomeScreen({
         ))}
       </div>
 
-      {/* Recommended Places Section */}
+      {/* Önerilen Yerler */}
       <div style={{ marginTop: 22 }}>
         <div style={{ padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <span style={{ fontSize: 17, fontWeight: 700, color: "#111" }}>Önerilen Yerler</span>
@@ -315,13 +230,14 @@ function HomeScreen({
         </div>
         <div style={{ paddingLeft: 24, display: "flex", gap: 16, overflowX: "auto", paddingBottom: 4, paddingRight: 8 }}>
           {cities.map((city) => (
-            <div key={city.name} onClick={() => onCityClick(city.name)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, flexShrink: 0, cursor: "pointer" }}>
-              <div style={{ width: 72, height: 72, borderRadius: 36, overflow: "hidden", border: `2.5px solid ${ORANGE}`, boxShadow: `0 4px 14px rgba(242,132,68,0.18)`, position: "relative" }}>
-                <img src={city.image} alt={city.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => {
-                  const t = e.target as HTMLImageElement;
-                  t.style.display = "none";
-                  if (t.parentElement) t.parentElement.style.background = `linear-gradient(135deg, ${ORANGE}, #E06010)`;
-                }} />
+            <div key={city.name} onClick={() => onOpen(city.name)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, flexShrink: 0, cursor: "pointer" }}>
+              <div style={{ width: 72, height: 72, borderRadius: 36, overflow: "hidden", border: `2.5px solid ${ORANGE}`, boxShadow: `0 4px 14px rgba(230,126,34,0.18)` }}>
+                <img src={city.image} alt={city.name} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => {
+                    const t = e.target as HTMLImageElement;
+                    t.style.display = "none";
+                    if (t.parentElement) t.parentElement.style.background = `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`;
+                  }} />
               </div>
               <span style={{ fontSize: 12, fontWeight: 600, color: "#111", textAlign: "center" }}>{city.name}</span>
             </div>
@@ -331,7 +247,7 @@ function HomeScreen({
 
       <div style={{ margin: "20px 24px 0", height: 1, backgroundColor: "#F3F3F3" }} />
 
-      {/* Featured Places */}
+      {/* Popüler Rotalar */}
       <div style={{ marginTop: 18 }}>
         <div style={{ padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <span style={{ fontSize: 17, fontWeight: 700, color: "#111" }}>Popüler Rotalar</span>
@@ -339,8 +255,8 @@ function HomeScreen({
         </div>
         <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 14 }}>
           {featuredPlaces.map((place) => (
-            <div key={place.name} onClick={() => onCityClick(place.name)} style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.07)", backgroundColor: "#fff", border: "1px solid #F3F3F3", cursor: "pointer" }}>
-              <div style={{ position: "relative", height: 150 }}>
+            <div key={place.name} onClick={() => onOpen(place.name)} style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.07)", backgroundColor: "#fff", border: "1px solid #F3F3F3", cursor: "pointer" }}>
+              <div style={{ position: "relative", height: 148 }}>
                 <img src={place.image} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.5) 100%)" }} />
                 <div style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -350,22 +266,20 @@ function HomeScreen({
                   {place.tag}
                 </div>
               </div>
-              <div style={{ padding: "12px 16px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{place.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
-                      <MapPin size={12} color="#AAAAAA" />
-                      <span style={{ fontSize: 12, color: "#888" }}>{place.subtitle}</span>
-                    </div>
+              <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{place.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                    <MapPin size={12} color="#AAAAAA" />
+                    <span style={{ fontSize: 12, color: "#888" }}>{place.subtitle}, Türkiye</span>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                      <Star size={13} color={ORANGE} fill={ORANGE} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{place.rating}</span>
-                    </div>
-                    <span style={{ fontSize: 11, color: "#AAA" }}>{place.reviews} değerlendirme</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    <Star size={13} color={ORANGE} fill={ORANGE} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{place.rating}</span>
                   </div>
+                  <span style={{ fontSize: 11, color: "#AAA" }}>{place.reviews} değerlendirme</span>
                 </div>
               </div>
             </div>
@@ -373,7 +287,7 @@ function HomeScreen({
         </div>
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom nav */}
       <div style={{ margin: "22px 24px 32px", backgroundColor: "#111", borderRadius: 28, padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
         {[
           { icon: <Home size={22} />, active: true },
@@ -381,8 +295,8 @@ function HomeScreen({
           { icon: <Bookmark size={22} />, active: false },
           { icon: <User size={22} />, active: false },
         ].map((item, i) => (
-          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", color: item.active ? ORANGE : "rgba(255,255,255,0.45)", cursor: "pointer", position: "relative" }}>
-            {item.active && <div style={{ position: "absolute", top: -14, width: 3, height: 3, borderRadius: 2, backgroundColor: ORANGE }} />}
+          <div key={i} style={{ color: item.active ? ORANGE : "rgba(255,255,255,0.45)", cursor: "pointer", position: "relative" }}>
+            {item.active && <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE }} />}
             {item.icon}
           </div>
         ))}
@@ -391,97 +305,83 @@ function HomeScreen({
   );
 }
 
-function GuideScreen({
-  city,
-  text,
-  isLoading,
-  error,
-  scrollRef,
-  onBack,
-  onRetry,
-}: {
-  city: string;
-  text: string;
-  isLoading: boolean;
-  error: string;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
+// ─── Guide screen ─────────────────────────────────────────────────────
+function GuideScreen({ route, unknownCity, onBack }: {
+  route: RouteData | null;
+  unknownCity: string;
   onBack: () => void;
-  onRetry: () => void;
 }) {
+  const cityLabel = route?.city ?? unknownCity;
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Status Bar */}
+      {/* Status bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px 0", fontSize: 12, fontWeight: 600, color: "#111", flexShrink: 0 }}>
         <span>9:41</span>
-        <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px 1px", display: "flex", alignItems: "center" }}>
+        <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px", display: "flex", alignItems: "center" }}>
           <div style={{ width: "75%", height: "100%", borderRadius: 2, backgroundColor: "#111" }} />
         </div>
       </div>
 
-      {/* Header */}
-      <div style={{ padding: "14px 24px 16px", display: "flex", alignItems: "center", gap: 14, flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
+      {/* Header bar */}
+      <div style={{ padding: "12px 24px 14px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
         <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 19, border: "none", backgroundColor: "#F7F7F7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
           <ArrowLeft size={18} color="#333" />
         </button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, color: "#AAA", fontWeight: 500 }}>Yapay Zeka Rehberi</div>
+          <div style={{ fontSize: 11, color: "#AAA", fontWeight: 500 }}>GezIN Rehberi</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: "#111", lineHeight: 1.2 }}>
-            {city} <span style={{ color: ORANGE }}>Rotası</span>
+            {cityLabel} <span style={{ color: ORANGE }}>Rotası</span>
           </div>
         </div>
-        <div style={{ width: 36, height: 36, borderRadius: 18, background: `linear-gradient(135deg, ${ORANGE}, #E06010)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 18, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Sparkles size={18} color="white" />
         </div>
       </div>
 
-      {/* Content */}
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 24px 24px" }}>
-        {!text && isLoading && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 16 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 28, background: ORANGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Loader2 size={28} color={ORANGE} style={{ animation: "spin 1s linear infinite" }} />
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 28px" }}>
+        {route ? (
+          <>
+            {/* "Harika seçim!" banner */}
+            <div style={{ backgroundColor: ORANGE_LIGHT, borderRadius: 16, padding: "14px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🎉</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: ORANGE }}>Harika seçim!</div>
+                <div style={{ fontSize: 12, color: "#666", marginTop: 1 }}>GezIN rehberin hazır. İyi geziler!</div>
+              </div>
             </div>
-            <div style={{ fontSize: 14, color: "#888", fontWeight: 500, textAlign: "center" }}>
-              {city} için rota hazırlanıyor...
-            </div>
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-          </div>
-        )}
 
-        {error && (
-          <div style={{ backgroundColor: "#FFF3EB", borderRadius: 16, padding: "16px", textAlign: "center" }}>
-            <div style={{ fontSize: 14, color: "#E06010", marginBottom: 12 }}>{error}</div>
-            <button onClick={onRetry} style={{ backgroundColor: ORANGE, color: "white", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-              Tekrar Dene
+            {/* Day cards */}
+            {route.days.map((day, di) => (
+              <DayCard key={di} day={day} index={di} />
+            ))}
+
+            {/* Footer tip */}
+            <div style={{ marginTop: 8, padding: "14px 16px", backgroundColor: "#F7F7F7", borderRadius: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <Sparkles size={15} color={ORANGE} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ fontSize: 12, color: "#666", lineHeight: 1.55 }}>
+                Başka bir şehir için de rota oluşturmak ister misin? <span style={{ color: ORANGE, fontWeight: 700 }}>Geri dön</span> ve yeni bir şehir seç!
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Unknown city state */
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48, gap: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 48 }}>🗺️</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>"{cityLabel}" için hazır rota yok</div>
+            <div style={{ fontSize: 13, color: "#888", lineHeight: 1.55, maxWidth: 260 }}>
+              Şu an <span style={{ color: ORANGE, fontWeight: 700 }}>Ankara</span> ve <span style={{ color: ORANGE, fontWeight: 700 }}>Samsun</span> için detaylı rotalarımız var. Diğer şehirler yakında ekleniyor!
+            </div>
+            <button onClick={onBack} style={{ marginTop: 8, backgroundColor: ORANGE, color: "white", border: "none", borderRadius: 14, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              Geri Dön
             </button>
-          </div>
-        )}
-
-        {text && (
-          <div>
-            <SimpleMarkdown text={text} />
-            {isLoading && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12 }}>
-                <div style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ORANGE, animation: "pulse 1s ease-in-out infinite" }} />
-                <div style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ORANGE, animation: "pulse 1s ease-in-out 0.2s infinite" }} />
-                <div style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ORANGE, animation: "pulse 1s ease-in-out 0.4s infinite" }} />
-                <style>{`@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-              </div>
-            )}
-            {!isLoading && (
-              <div style={{ marginTop: 20, padding: "14px 16px", backgroundColor: ORANGE_LIGHT, borderRadius: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <Sparkles size={16} color={ORANGE} style={{ flexShrink: 0, marginTop: 2 }} />
-                <div style={{ fontSize: 12, color: "#E06010", lineHeight: 1.5 }}>
-                  Rotanı beğendin mi? Başka bir şehir için de YZ rehberinden rota alabilirsin!
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Bottom Nav */}
-      <div style={{ margin: "0 24px 28px", backgroundColor: "#111", borderRadius: 28, padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+      {/* Bottom nav */}
+      <div style={{ margin: "0 20px 24px", backgroundColor: "#111", borderRadius: 28, padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
         {[
           { icon: <Home size={22} />, active: false },
           { icon: <Compass size={22} />, active: true },
@@ -493,6 +393,66 @@ function GuideScreen({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── Day card ─────────────────────────────────────────────────────────
+function DayCard({ day, index }: { day: Day; index: number }) {
+  return (
+    <div style={{
+      backgroundColor: "#FFFFFF",
+      borderRadius: 20,
+      boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
+      border: "1px solid #F0F0F0",
+      marginBottom: 14,
+      overflow: "hidden",
+    }}>
+      {/* Day header */}
+      <div style={{
+        backgroundColor: index % 2 === 0 ? ORANGE : "#111",
+        padding: "12px 18px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}>
+        <div style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", flexShrink: 0 }}>
+          {index + 1}
+        </div>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "white", lineHeight: 1.3 }}>{day.title.replace(/^\d+\. Gün — /, "")}</span>
+      </div>
+
+      {/* Day items */}
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {day.items.map((item, ii) => (
+          <RouteItem key={ii} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Route item ───────────────────────────────────────────────────────
+type ItemData = {
+  icon: string;
+  text: string;
+  highlight?: string;
+  text2?: string;
+  highlight2?: string;
+  text2b?: string;
+};
+
+function RouteItem({ item }: { item: ItemData }) {
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.4 }}>{item.icon}</span>
+      <p style={{ fontSize: 13, color: "#444", lineHeight: 1.6, margin: 0 }}>
+        {item.text}
+        {item.highlight && <strong style={{ color: ORANGE }}>{item.highlight}</strong>}
+        {item.text2}
+        {item.highlight2 && <strong style={{ color: ORANGE }}>{item.highlight2}</strong>}
+        {item.text2b}
+      </p>
     </div>
   );
 }
