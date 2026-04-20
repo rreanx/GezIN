@@ -1,176 +1,423 @@
-import { useState } from "react";
-import { Search, MapPin, Heart, Home, Compass, User, Bell, Star, ChevronRight, Bookmark, ArrowLeft, Send, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Search, MapPin, Heart, Home, Compass, User, Bell,
+  Star, ChevronRight, Bookmark, ArrowLeft, Send, Sparkles,
+} from "lucide-react";
 
+// ─── Constants ────────────────────────────────────────────────────────
 const ORANGE = "#E67E22";
 const ORANGE_LIGHT = "#FEF3E8";
 const ORANGE_DARK = "#C96A10";
 
-// ─── Static route data ──────────────────────────────────────────────
-type Day = {
-  title: string;
-  items: { icon: string; text: string; highlight?: string }[];
-};
+// ─── Animations ───────────────────────────────────────────────────────
+const ANIM_CSS = `
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slideOutLeft {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(-60%); opacity: 0; }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-60%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0);   opacity: 0.4; }
+  40%           { transform: translateY(-6px); opacity: 1;   }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+`;
 
-type RouteData = {
-  city: string;
-  days: Day[];
-};
+// ─── Route data ───────────────────────────────────────────────────────
+type Item = { icon: string; bold?: string; after?: string; before?: string };
+type Day  = { title: string; items: Item[] };
+type Route = { city: string; days: Day[] };
 
-const STATIC_ROUTES: Record<string, RouteData> = {
-  samsun: {
-    city: "Samsun",
-    days: [
-      {
-        title: "1. Gün — Bandırma Vapuru & Atakum Sahili",
-        items: [
-          { icon: "📍", text: "Sabah erkenden ", highlight: "Bandırma Vapuru Müzesi", text2: "'ni ziyaret et — Kurtuluş Savaşı'nın başlangıç noktası, tarihe adım atmak gibi." },
-          { icon: "📸", text: "Öğleden sonra ", highlight: "Atakum Sahili", text2: "boyunca yürüyüş yap, yürüyüş parkurları harika manzara sunuyor." },
-          { icon: "🍽️", text: "Akşam sahil restoranlarında ", highlight: "Samsun pilavı ve hamsi tava", text2: " dene — balık burada efsane!" },
-        ],
-      },
-      {
-        title: "2. Gün — Amisos Tepesi & Kızılırmak Deltası",
-        items: [
-          { icon: "📍", text: "Sabah ", highlight: "Amisos Tepesi", text2: "'ne çık — antik tümülüs ve şehrin panoramik manzarası seni bekliyor." },
-          { icon: "📸", text: "Öğle sonrası ", highlight: "Kızılırmak Deltası Kuş Cenneti", text2: "'ni keşfet — yüzlerce kuş türü, doğa fotoğrafçıları için cennet." },
-          { icon: "🍽️", text: "Akşam şehir merkezinde ", highlight: "Samsun kebabı ve yöresel tatlılar", text2: " için ünlü lokantalara uğra." },
-        ],
-      },
-      {
-        title: "3. Gün — Samsun Pidesi & Stadyum Turu",
-        items: [
-          { icon: "🍽️", text: "Sabah mutlaka ", highlight: "Samsun pidesi", text2: " ye — kaşarlı, tereyağlı, fırından yeni çıkmış. Yemeden gitme!" },
-          { icon: "📍", text: "Öğleden sonra ", highlight: "Samsun 19 Mayıs Stadyumu", text2: " çevresinde tur at, büyük parkta dinlen." },
-          { icon: "📸", text: "Akşam ", highlight: "Saat Kulesi ve çarşı", text2: " bölgesinde tarihi dokuyu yakala, hediyelik alışverişini tamamla." },
-        ],
-      },
-    ],
-  },
+const ROUTES: Record<string, Route> = {
   ankara: {
     city: "Ankara",
     days: [
       {
-        title: "1. Gün — Anıtkabir & Atatürk'ün izi",
+        title: "Anıtkabir & Müze Turu",
         items: [
-          { icon: "📍", text: "Sabah ", highlight: "Anıtkabir", text2: "'i ziyaret et — Türkiye'nin en önemli anıtı, derin bir his bırakıyor." },
-          { icon: "📸", text: "Öğleden sonra yakınındaki ", highlight: "Anadolu Medeniyetleri Müzesi", text2: "'ne geç — dünyanın en iyi müzelerinden biri." },
-          { icon: "🍽️", text: "Akşam ", highlight: "Kızılay meydanı", text2: " çevresinde Ankara'nın sevilen kebapçılarından birinde ", highlight2: "Ankara tava", text2b: " dene." },
+          { icon: "📍", before: "Sabah erkenden ", bold: "Anıtkabir", after: "'i ziyaret et — tarihin ağırlığını hissedeceksin." },
+          { icon: "🏛️", before: "Öğleden sonra yanı başındaki ", bold: "Anadolu Medeniyetleri Müzesi", after: "'ne geç, dünyanın en iyi müzelerinden biri." },
+          { icon: "🍽️", before: "Akşam Kızılay'da meşhur bir kebapçıda ", bold: "Ankara tava", after: " ve ayran dene." },
         ],
       },
       {
-        title: "2. Gün — Ankara Kalesi & Tarihi Çarşı",
+        title: "Ankara Kalesi & Tarihi Çarşı",
         items: [
-          { icon: "📍", text: "Sabah ", highlight: "Ankara Kalesi", text2: "'ne çık — sur duvarları üzerinden tüm şehri gör, tarihi Hisar semtini gez." },
-          { icon: "📸", text: "Kale içindeki dar taş sokaklarda ", highlight: "geleneksel el sanatları", text2: " atölyelerini ve bakır ustalarını keşfet." },
-          { icon: "🍽️", text: "Öğle yemeğinde yakındaki restoranlarda ", highlight: "Ankara simidi ve kavurma", text2: " mutlaka dene." },
+          { icon: "📍", before: "Sabah ", bold: "Ankara Kalesi", after: "'ne çık — surlardan tüm şehri seyret." },
+          { icon: "📸", before: "Kale içinde dar taş sokaklarda ", bold: "bakır ustaları", after: " ve antika dükkânlarını keşfet." },
+          { icon: "🍽️", before: "Öğlede yakın lokantalarda ", bold: "Simit çorbası ve kavurma", after: " denemeyi unutma." },
         ],
       },
       {
-        title: "3. Gün — Kuğulu Park & Modern Ankara",
+        title: "Kuğulu Park & Modern Ankara",
         items: [
-          { icon: "📍", text: "Sabah sakin ", highlight: "Kuğulu Park", text2: "'ta yürüyüş yap — şehrin ortasında nefes alan yeşil bir cennet." },
-          { icon: "📸", text: "Öğleden sonra ", highlight: "Tunalı Hilmi Caddesi", text2: " ve Kavaklıdere'de kafeler, butik dükkanlar, Ankara'nın modern yüzü." },
-          { icon: "🍽️", text: "Son akşam için ", highlight: "Gaziosmanpaşa'da fine dining", text2: " — başkentin en iyi restoranları burada seni bekliyor." },
+          { icon: "🌿", before: "Sabah sakin ", bold: "Kuğulu Park", after: "'ta yürüyüş, şehrin ortasında nefes al." },
+          { icon: "📸", before: "Öğleden sonra ", bold: "Tunalı Hilmi Caddesi", after: "'nde kafeler ve butiklerle modern Ankara'yı keşfet." },
+          { icon: "🍽️", before: "Son akşam için ", bold: "Gaziosmanpaşa restoranları", after: " — başkentin en iyi mutfağı burada." },
+        ],
+      },
+    ],
+  },
+  samsun: {
+    city: "Samsun",
+    days: [
+      {
+        title: "Bandırma Vapuru & Atakum Sahili",
+        items: [
+          { icon: "⚓", before: "Sabah ", bold: "Bandırma Vapuru Müzesi", after: "'ni ziyaret et — Kurtuluş Savaşı'nın başlangıç noktası." },
+          { icon: "📸", before: "Öğleden sonra ", bold: "Atakum Sahili", after: " boyunca yürü, deniz manzarası eşsiz." },
+          { icon: "🍽️", before: "Akşam sahil restoranlarında ", bold: "hamsi tava ve Samsun pilavı", after: " ye." },
+        ],
+      },
+      {
+        title: "Amisos Tepesi & Kızılırmak Deltası",
+        items: [
+          { icon: "📍", before: "Sabah ", bold: "Amisos Tepesi", after: "'ne çık — antik tümülüs ve panoramik şehir manzarası." },
+          { icon: "🦅", before: "Öğle sonrası ", bold: "Kızılırmak Deltası Kuş Cenneti", after: " — yüzlerce kuş türü, doğa fotoğrafçılarının gözdesi." },
+          { icon: "🍽️", before: "Akşam şehir merkezinde ", bold: "Samsun kebabı", after: " ve tatlı dükkanlarını gez." },
+        ],
+      },
+      {
+        title: "Samsun Pidesi & Stadyum Turu",
+        items: [
+          { icon: "🍕", before: "Sabah mutlaka ", bold: "Samsun pidesi", after: " ye — tereyağlı, kaşarlı, fırından taze. Yemeden gitme!" },
+          { icon: "📍", before: "Öğleden sonra ", bold: "19 Mayıs Stadyumu", after: " çevresinde tur at, büyük parkta dinlen." },
+          { icon: "📸", before: "Akşam ", bold: "Saat Kulesi ve çarşı", after: " bölgesinde tarihi dokuyu yakala." },
+        ],
+      },
+    ],
+  },
+  istanbul: {
+    city: "İstanbul",
+    days: [
+      {
+        title: "Sultanahmet & Tarihi Yarımada",
+        items: [
+          { icon: "🕌", before: "Sabah ", bold: "Ayasofya", after: "'ya gir — kubbenin altında dur, büyüleneceksin." },
+          { icon: "📍", before: "Öğlede ", bold: "Kapalıçarşı", after: "'da kuyum ve baharat koridorlarında kaybol." },
+          { icon: "🍽️", before: "Akşam Eminönü'nde ", bold: "balık ekmek", after: " ve ", bold2: "midye dolma", after2: " — İstanbul klasiği." },
+        ],
+      },
+      {
+        title: "Boğaz & Beyoğlu",
+        items: [
+          { icon: "⛵", before: "Sabah ", bold: "Boğaz turu", after: " ile iki kıtayı aynı anda gör, rüzgarı hisset." },
+          { icon: "📸", before: "Öğleden sonra ", bold: "İstiklal Caddesi", after: " ve Galata Kulesi, şehrin ruhunu taşıyor." },
+          { icon: "🍽️", before: "Akşam Karaköy'de ", bold: "meyhane sofrası", after: " — meze, rakı, deniz ürünleri." },
+        ],
+      },
+      {
+        title: "Adalar & Prenses Adası",
+        items: [
+          { icon: "⛴️", before: "Sabah vapurla ", bold: "Büyükada'ya", after: " geç — arabalar yok, sadece faytonlar ve bisikletler." },
+          { icon: "📸", before: "Ada tepesinde ", bold: "Aya Yorgi Kilisesi", after: "'nden Marmara manzarası nefes kesici." },
+          { icon: "🍽️", before: "Ada dönüşü Kadıköy'de ", bold: "çarşı turu", after: " ve akşam yemeği." },
+        ],
+      },
+    ],
+  },
+  izmir: {
+    city: "İzmir",
+    days: [
+      {
+        title: "Kordon & Tarihi Merkez",
+        items: [
+          { icon: "🌊", before: "Sabah ", bold: "Kordon", after: " boyunca kahveni al, Ege'nin önünde yürü." },
+          { icon: "📍", before: "Öğlede ", bold: "Kemeraltı Çarşısı", after: "'nda labirent gibi sokakları keşfet." },
+          { icon: "🍽️", before: "Akşam ", bold: "İzmir köfte ve boyoz", after: " — lokaller nereye gidiyorsa oraya git." },
+        ],
+      },
+      {
+        title: "Efes Antik Kenti",
+        items: [
+          { icon: "🏛️", before: "Tam gün ", bold: "Efes Antik Kenti", after: " gezisi — Selsus Kütüphanesi ve Büyük Tiyatro ihtişamlı." },
+          { icon: "📸", before: "Yakınındaki ", bold: "Meryem Ana Evi", after: "'ni de ziyaret et, huzur dolu bir yer." },
+          { icon: "🍽️", before: "Dönüşte Selçuk'ta ", bold: "köy kahvaltısı", after: " ya da taze incir ve peynir." },
+        ],
+      },
+      {
+        title: "Çeşme & Alaçatı",
+        items: [
+          { icon: "🏖️", before: "Sabah ", bold: "Çeşme plajları", after: "'nda yüz — kristal berraklığında Ege suyu." },
+          { icon: "📍", before: "Öğleden sonra ", bold: "Alaçatı taş sokakları", after: " — bougainvillea sarılı evler, butik kafeler." },
+          { icon: "🍽️", before: "Akşam Alaçatı'da ", bold: "ege mezeleri ve deniz mahsulleri", after: " ile muhteşem bitiş." },
+        ],
+      },
+    ],
+  },
+  eskisehir: {
+    city: "Eskişehir",
+    days: [
+      {
+        title: "Porsuk & Odunpazarı",
+        items: [
+          { icon: "🚣", before: "Sabah ", bold: "Porsuk Çayı", after: "'nda gondol turu — şehrin romantik yüzü." },
+          { icon: "📍", before: "Öğlede ", bold: "Odunpazarı", after: " tarihi evlerini gez — Osmanlı dokusu harika korunmuş." },
+          { icon: "🍽️", before: "Akşam kutlama buluşmasının merkezi ", bold: "çibörek ve Eskişehir ciğeri", after: " dene." },
+        ],
+      },
+      {
+        title: "Müzeler & Lületaşı",
+        items: [
+          { icon: "🏛️", before: "Sabah ", bold: "Cam Eserleri Müzesi", after: " ve ", bold2: "Atatürk Evi", after2: " — kültür turu." },
+          { icon: "📸", before: "Öğlede ", bold: "Lületaşı çarşısı", after: " — dünyanın lületaşı başkenti, hediyelik mükemmel." },
+          { icon: "🍽️", before: "Akşam üniversite mahallesinde ", bold: "öğrenci kafeleri", after: " — canlı atmosfer, uygun fiyat." },
+        ],
+      },
+    ],
+  },
+  antalya: {
+    city: "Antalya",
+    days: [
+      {
+        title: "Kaleiçi & Tarihi Liman",
+        items: [
+          { icon: "⚓", before: "Sabah ", bold: "Kaleiçi", after: "'nde kaybol — Roma surları, dar sokaklar, sarmaşıklar." },
+          { icon: "📍", before: "Öğlede ", bold: "Hadrian Kapısı", after: " ve antik liman çevresinde fotoğraf çek." },
+          { icon: "🍽️", before: "Akşam limanda balıkçı restoranlarında ", bold: "Akdeniz meze ve ızgara balık", after: "." },
+        ],
+      },
+      {
+        title: "Düden Şelalesi & Müzeler",
+        items: [
+          { icon: "💦", before: "Sabah ", bold: "Düden Şelalesi", after: " — denize dökülen şelale, görülmesi gereken manzara." },
+          { icon: "🏛️", before: "Öğlede Türkiye'nin en büyük arkeoloji müzelerinden ", bold: "Antalya Müzesi", after: "'ne git." },
+          { icon: "🍽️", before: "Akşam ", bold: "Tantuni ve şiş köfte", after: " — yerel sokak lezzetleri, bol acı." },
+        ],
+      },
+      {
+        title: "Olimpos & Yanartaş",
+        items: [
+          { icon: "🔥", before: "Tam gün turu: ", bold: "Yanartaş", after: " — binlerce yıldır yanan doğal alevler, efsane gibi." },
+          { icon: "📍", before: "Yakınındaki ", bold: "Olimpos antik kenti", after: " ve plajı — ormandan denize açılan gizli cennet." },
+          { icon: "🍽️", before: "Dönüşte ", bold: "Kemer'de balık restoranı", after: " — yorgunluk uçup gidecek." },
+        ],
+      },
+    ],
+  },
+  kapadokya: {
+    city: "Kapadokya",
+    days: [
+      {
+        title: "Balon Turu & Göreme",
+        items: [
+          { icon: "🎈", before: "Sabah şafakta ", bold: "sıcak hava balonu turu", after: " — hayatının en güzel anlarından biri olacak." },
+          { icon: "📍", before: "Öğlede ", bold: "Göreme Açık Hava Müzesi", after: " — kaya kiliseler ve freskler." },
+          { icon: "🍽️", before: "Akşam yerel restoranda ", bold: "testi kebabı", after: " — kil testi içinde pişen et, muhteşem." },
+        ],
+      },
+      {
+        title: "Peribacaları & Yeraltı Şehri",
+        items: [
+          { icon: "🗿", before: "Sabah ", bold: "Ürgüp peribacaları", after: " arasında yürüyüş — Mars gezegeninde gibi hissedeceksin." },
+          { icon: "📍", before: "Öğlede ", bold: "Derinkuyu Yeraltı Şehri", after: " — 8 katlı, binlerce kişilik yeraltı medeniyeti." },
+          { icon: "🍽️", before: "Akşam Ürgüp'te şarap tadımı: ", bold: "Kapadokya üzümlerinden", after: " yapılan şaraplar dünyaca ünlü." },
+        ],
+      },
+    ],
+  },
+  pamukkale: {
+    city: "Pamukkale",
+    days: [
+      {
+        title: "Travertenler & Antik Havuz",
+        items: [
+          { icon: "⬜", before: "Sabah erkenden ", bold: "Pamukkale travertenleri", after: "'ne çık — beyaz pamuk kaleler, sıcak kaplıca suyu." },
+          { icon: "🏊", before: "Öğlede ", bold: "Kleopatra'nın Antik Havuzu", after: "'nda yüz — Roma sütunları arasında yüzmek başka bir şey." },
+          { icon: "🍽️", before: "Akşam köyde ", bold: "kuzu tandır ve yöresel mezeler", after: " — sade ama lezzetli." },
+        ],
+      },
+      {
+        title: "Hierapolis Antik Kenti",
+        items: [
+          { icon: "🏛️", before: "Sabah ", bold: "Hierapolis Antik Kenti", after: " turu — nekropol ve büyük tiyatro etkileyici." },
+          { icon: "📸", before: "Öğlede tepeden ", bold: "Denizli ovasının", after: " panoramasını fotoğrafla." },
+          { icon: "🍽️", before: "Dönüşte Denizli'de ", bold: "incir tatlıları ve halva", after: " — bölgenin en sevilen lezzetleri." },
         ],
       },
     ],
   },
 };
 
-function getRoute(cityName: string): RouteData | null {
-  const key = cityName.toLowerCase().replace("i̇", "i").replace("ı", "i").replace("ş", "s").replace("ğ", "g").replace("ü", "u").replace("ö", "o").replace("ç", "c");
-  return STATIC_ROUTES[key] ?? null;
+// Normalise Turkish city names → lookup key
+function toKey(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/i̇/g, "i")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/â/g, "a")
+    .trim();
 }
 
-// ─── Types ────────────────────────────────────────────────────────────
-type Screen = "home" | "guide";
+function findRoute(city: string): Route | null {
+  return ROUTES[toKey(city)] ?? null;
+}
 
-// ─── City list ───────────────────────────────────────────────────────
-const cities = [
-  { name: "Ankara", image: "/__mockup/images/ankara.png" },
-  { name: "İstanbul", image: "/__mockup/images/istanbul.png" },
-  { name: "İzmir", image: "/__mockup/images/izmir.png" },
-  { name: "Samsun", image: "/__mockup/images/samsun.png" },
+// ─── City + featured lists ────────────────────────────────────────────
+const CITY_CIRCLES = [
+  { name: "Ankara",    image: "/__mockup/images/ankara.png" },
+  { name: "İstanbul",  image: "/__mockup/images/istanbul.png" },
+  { name: "İzmir",     image: "/__mockup/images/izmir.png" },
+  { name: "Samsun",    image: "/__mockup/images/samsun.png" },
   { name: "Eskişehir", image: "/__mockup/images/eskisehir.png" },
-  { name: "Antalya", image: "/__mockup/images/antalya.png" },
+  { name: "Antalya",   image: "/__mockup/images/antalya.png" },
 ];
 
-const featuredPlaces = [
+const FEATURED = [
   { name: "Kapadokya", subtitle: "Nevşehir", image: "https://images.unsplash.com/photo-1641128324972-af3212f0f6bd?w=400&q=80", rating: "4.9", reviews: "2.4k", tag: "Doğa" },
-  { name: "Pamukkale", subtitle: "Denizli", image: "https://images.unsplash.com/photo-1568849676085-51415703900f?w=400&q=80", rating: "4.8", reviews: "1.8k", tag: "Tarih" },
+  { name: "Pamukkale", subtitle: "Denizli",  image: "https://images.unsplash.com/photo-1568849676085-51415703900f?w=400&q=80", rating: "4.8", reviews: "1.8k", tag: "Tarih" },
 ];
 
-// ─── Root component ───────────────────────────────────────────────────
-export function GezIN() {
-  const [screen, setScreen] = useState<Screen>("home");
-  const [searchValue, setSearchValue] = useState("");
-  const [activeRoute, setActiveRoute] = useState<RouteData | null>(null);
-  const [unknownCity, setUnknownCity] = useState("");
+// ─── Transition wrapper ───────────────────────────────────────────────
+type Direction = "forward" | "back";
 
-  const openCity = (cityName: string) => {
-    const route = getRoute(cityName);
-    if (route) {
-      setActiveRoute(route);
-      setUnknownCity("");
-    } else {
-      setActiveRoute(null);
-      setUnknownCity(cityName);
-    }
-    setScreen("guide");
+function ScreenSlide({ children, id, direction }: { children: React.ReactNode; id: string; direction: Direction }) {
+  const anim = direction === "forward" ? "slideInRight 0.35s cubic-bezier(0.4,0,0.2,1) forwards"
+                                       : "slideInLeft  0.35s cubic-bezier(0.4,0,0.2,1) forwards";
+  return (
+    <div key={id} style={{ position: "absolute", inset: 0, animation: anim, willChange: "transform, opacity" }}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────
+type Screen = "home" | "loading" | "guide";
+
+export function GezIN() {
+  const [screen, setScreen]         = useState<Screen>("home");
+  const [direction, setDirection]   = useState<Direction>("forward");
+  const [search, setSearch]         = useState("");
+  const [pendingCity, setPending]   = useState("");
+  const [activeRoute, setRoute]     = useState<Route | null>(null);
+  const [unknownCity, setUnknown]   = useState("");
+
+  const goTo = (city: string) => {
+    setPending(city);
+    setDirection("forward");
+    setScreen("loading");
+    setTimeout(() => {
+      const r = findRoute(city);
+      setRoute(r);
+      setUnknown(r ? "" : city);
+      setScreen("guide");
+    }, 1400);
   };
+
+  const goBack = () => {
+    setDirection("back");
+    setScreen("home");
+  };
+
+  const screenKey = screen + pendingCity;
 
   return (
     <div style={{
       width: 390, height: 844,
-      backgroundColor: "#FFFFFF",
+      backgroundColor: "#fff",
       fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
       overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
+      position: "relative",
     }}>
-      {screen === "home"
-        ? <HomeScreen searchValue={searchValue} onSearchChange={setSearchValue} onOpen={openCity} />
-        : <GuideScreen route={activeRoute} unknownCity={unknownCity} onBack={() => setScreen("home")} />}
+      <style>{ANIM_CSS}</style>
+
+      {screen === "home" && (
+        <ScreenSlide id="home" direction={direction}>
+          <HomeScreen
+            search={search}
+            onSearchChange={setSearch}
+            onOpen={goTo}
+          />
+        </ScreenSlide>
+      )}
+
+      {screen === "loading" && (
+        <ScreenSlide id={"loading-" + pendingCity} direction="forward">
+          <LoadingScreen city={pendingCity} />
+        </ScreenSlide>
+      )}
+
+      {screen === "guide" && (
+        <ScreenSlide id={"guide-" + pendingCity} direction="forward">
+          <GuideScreen
+            route={activeRoute}
+            unknownCity={unknownCity}
+            onBack={goBack}
+          />
+        </ScreenSlide>
+      )}
+    </div>
+  );
+}
+
+// ─── Loading screen ───────────────────────────────────────────────────
+function LoadingScreen({ city }: { city: string }) {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#fff", gap: 24 }}>
+      {/* Big icon */}
+      <div style={{ width: 80, height: 80, borderRadius: 40, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 8px 32px rgba(230,126,34,0.3)` }}>
+        <Sparkles size={36} color="white" />
+      </div>
+
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#111", marginBottom: 4 }}>
+          <span style={{ color: ORANGE }}>{city}</span> rotası
+        </div>
+        <div style={{ fontSize: 13, color: "#888", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          planlanıyor
+          <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} style={{
+                width: 6, height: 6, borderRadius: 3,
+                backgroundColor: ORANGE,
+                display: "inline-block",
+                animation: `dot-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── Home screen ──────────────────────────────────────────────────────
-function HomeScreen({ searchValue, onSearchChange, onOpen }: {
-  searchValue: string;
+function HomeScreen({ search, onSearchChange, onOpen }: {
+  search: string;
   onSearchChange: (v: string) => void;
   onOpen: (city: string) => void;
 }) {
   return (
-    <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+    <div style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
       {/* Status bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px 0", fontSize: 12, fontWeight: 600, color: "#111" }}>
-        <span>9:41</span>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
-            <rect x="0" y="3" width="3" height="9" rx="1" fill="#111" />
-            <rect x="4.5" y="2" width="3" height="10" rx="1" fill="#111" />
-            <rect x="9" y="0" width="3" height="12" rx="1" fill="#111" />
-            <rect x="13.5" y="0" width="3" height="12" rx="1" fill="#111" opacity="0.3" />
-          </svg>
-          <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px", display: "flex", alignItems: "center" }}>
-            <div style={{ width: "75%", height: "100%", borderRadius: 2, backgroundColor: "#111" }} />
-          </div>
-        </div>
-      </div>
+      <StatusBar />
 
       {/* Header */}
-      <div style={{ padding: "16px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ padding: "14px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 13, color: "#888", fontWeight: 500, marginBottom: 2 }}>
-            <MapPin size={12} style={{ display: "inline", verticalAlign: "middle", color: ORANGE, marginRight: 4 }} />
-            Merhaba, Gezgin!
+          <div style={{ fontSize: 13, color: "#888", fontWeight: 500, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+            <MapPin size={12} color={ORANGE} /> Merhaba, Gezgin!
           </div>
           <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -1, color: "#111", lineHeight: 1 }}>
             Gez<span style={{ color: ORANGE }}>IN</span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ORANGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
             <Bell size={18} color={ORANGE} />
             <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ORANGE, position: "absolute", top: 9, right: 9, border: "1.5px solid white" }} />
@@ -183,8 +430,8 @@ function HomeScreen({ searchValue, onSearchChange, onOpen }: {
         </div>
       </div>
 
-      {/* AI Guide banner */}
-      <div style={{ margin: "18px 24px 0", borderRadius: 20, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, padding: "15px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: `0 6px 24px rgba(230,126,34,0.28)` }}>
+      {/* AI Banner */}
+      <div style={{ margin: "16px 24px 0", borderRadius: 20, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: `0 6px 24px rgba(230,126,34,0.25)` }}>
         <div style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Sparkles size={22} color="white" />
         </div>
@@ -195,18 +442,18 @@ function HomeScreen({ searchValue, onSearchChange, onOpen }: {
       </div>
 
       {/* Search */}
-      <div style={{ padding: "16px 24px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, backgroundColor: "#F7F7F7", borderRadius: 18, padding: "14px 18px", border: "1.5px solid #F0F0F0" }}>
+      <div style={{ padding: "14px 24px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, backgroundColor: "#F7F7F7", borderRadius: 18, padding: "13px 18px", border: "1.5px solid #F0F0F0" }}>
           <Search size={20} color={ORANGE} strokeWidth={2.5} />
           <input
-            value={searchValue}
+            value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && searchValue.trim() && onOpen(searchValue.trim())}
+            onKeyDown={(e) => e.key === "Enter" && search.trim() && onOpen(search.trim())}
             placeholder="Nereyi gezinmek istersin?"
             style={{ fontSize: 15, color: "#333", flex: 1, background: "none", border: "none", outline: "none", fontFamily: "inherit" }}
           />
-          {searchValue.trim() && (
-            <button onClick={() => onOpen(searchValue.trim())} style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: ORANGE, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer", flexShrink: 0 }}>
+          {search.trim() && (
+            <button onClick={() => onOpen(search.trim())} style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: ORANGE, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer", flexShrink: 0 }}>
               <Send size={15} color="white" />
             </button>
           )}
@@ -214,118 +461,91 @@ function HomeScreen({ searchValue, onSearchChange, onOpen }: {
       </div>
 
       {/* Tags */}
-      <div style={{ padding: "14px 24px 0", display: "flex", gap: 8 }}>
+      <div style={{ padding: "12px 24px 0", display: "flex", gap: 8 }}>
         {["Tümü", "Doğa", "Tarih", "Sahil", "Dağ"].map((tag, i) => (
-          <div key={tag} style={{ padding: "7px 16px", borderRadius: 20, backgroundColor: i === 0 ? ORANGE : "#F7F7F7", color: i === 0 ? "white" : "#666", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" }}>
+          <div key={tag} style={{ padding: "7px 15px", borderRadius: 20, backgroundColor: i === 0 ? ORANGE : "#F7F7F7", color: i === 0 ? "white" : "#666", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" }}>
             {tag}
           </div>
         ))}
       </div>
 
       {/* Önerilen Yerler */}
-      <div style={{ marginTop: 22 }}>
-        <div style={{ padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ fontSize: 17, fontWeight: 700, color: "#111" }}>Önerilen Yerler</span>
-          <span style={{ fontSize: 13, color: ORANGE, fontWeight: 600, display: "flex", alignItems: "center", gap: 2 }}>Tümünü Gör <ChevronRight size={14} /></span>
-        </div>
-        <div style={{ paddingLeft: 24, display: "flex", gap: 16, overflowX: "auto", paddingBottom: 4, paddingRight: 8 }}>
-          {cities.map((city) => (
-            <div key={city.name} onClick={() => onOpen(city.name)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, flexShrink: 0, cursor: "pointer" }}>
-              <div style={{ width: 72, height: 72, borderRadius: 36, overflow: "hidden", border: `2.5px solid ${ORANGE}`, boxShadow: `0 4px 14px rgba(230,126,34,0.18)` }}>
-                <img src={city.image} alt={city.name} style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  onError={(e) => {
-                    const t = e.target as HTMLImageElement;
-                    t.style.display = "none";
-                    if (t.parentElement) t.parentElement.style.background = `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`;
-                  }} />
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#111", textAlign: "center" }}>{city.name}</span>
+      <SectionHeader title="Önerilen Yerler" />
+      <div style={{ paddingLeft: 24, display: "flex", gap: 14, overflowX: "auto", paddingBottom: 4, paddingRight: 8 }}>
+        {CITY_CIRCLES.map((c) => (
+          <div key={c.name} onClick={() => onOpen(c.name)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0, cursor: "pointer" }}>
+            <div style={{ width: 70, height: 70, borderRadius: 35, overflow: "hidden", border: `2.5px solid ${ORANGE}`, boxShadow: `0 4px 14px rgba(230,126,34,0.18)` }}>
+              <img src={c.image} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                onError={(e) => {
+                  const t = e.target as HTMLImageElement;
+                  t.style.display = "none";
+                  if (t.parentElement) t.parentElement.style.background = `linear-gradient(135deg,${ORANGE},${ORANGE_DARK})`;
+                }} />
             </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ margin: "20px 24px 0", height: 1, backgroundColor: "#F3F3F3" }} />
-
-      {/* Popüler Rotalar */}
-      <div style={{ marginTop: 18 }}>
-        <div style={{ padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ fontSize: 17, fontWeight: 700, color: "#111" }}>Popüler Rotalar</span>
-          <span style={{ fontSize: 13, color: ORANGE, fontWeight: 600, display: "flex", alignItems: "center", gap: 2 }}>Tümünü Gör <ChevronRight size={14} /></span>
-        </div>
-        <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-          {featuredPlaces.map((place) => (
-            <div key={place.name} onClick={() => onOpen(place.name)} style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.07)", backgroundColor: "#fff", border: "1px solid #F3F3F3", cursor: "pointer" }}>
-              <div style={{ position: "relative", height: 148 }}>
-                <img src={place.image} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.5) 100%)" }} />
-                <div style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Heart size={16} color={ORANGE} />
-                </div>
-                <div style={{ position: "absolute", top: 12, left: 12, backgroundColor: ORANGE, color: "white", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>
-                  {place.tag}
-                </div>
-              </div>
-              <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{place.name}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
-                    <MapPin size={12} color="#AAAAAA" />
-                    <span style={{ fontSize: 12, color: "#888" }}>{place.subtitle}, Türkiye</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                    <Star size={13} color={ORANGE} fill={ORANGE} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{place.rating}</span>
-                  </div>
-                  <span style={{ fontSize: 11, color: "#AAA" }}>{place.reviews} değerlendirme</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom nav */}
-      <div style={{ margin: "22px 24px 32px", backgroundColor: "#111", borderRadius: 28, padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
-        {[
-          { icon: <Home size={22} />, active: true },
-          { icon: <Compass size={22} />, active: false },
-          { icon: <Bookmark size={22} />, active: false },
-          { icon: <User size={22} />, active: false },
-        ].map((item, i) => (
-          <div key={i} style={{ color: item.active ? ORANGE : "rgba(255,255,255,0.45)", cursor: "pointer", position: "relative" }}>
-            {item.active && <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE }} />}
-            {item.icon}
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#111", textAlign: "center" }}>{c.name}</span>
           </div>
         ))}
       </div>
+
+      <div style={{ margin: "18px 24px 0", height: 1, backgroundColor: "#F3F3F3" }} />
+
+      {/* Popüler Rotalar */}
+      <SectionHeader title="Popüler Rotalar" />
+      <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {FEATURED.map((p) => (
+          <div key={p.name} onClick={() => onOpen(p.name)} style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.07)", border: "1px solid #F3F3F3", cursor: "pointer" }}>
+            <div style={{ position: "relative", height: 140 }}>
+              <img src={p.image} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.5))" }} />
+              <div style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Heart size={16} color={ORANGE} />
+              </div>
+              <div style={{ position: "absolute", top: 12, left: 12, backgroundColor: ORANGE, color: "white", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>{p.tag}</div>
+            </div>
+            <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{p.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                  <MapPin size={12} color="#AAA" />
+                  <span style={{ fontSize: 12, color: "#888" }}>{p.subtitle}, Türkiye</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <Star size={13} color={ORANGE} fill={ORANGE} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{p.rating}</span>
+                </div>
+                <span style={{ fontSize: 11, color: "#AAA" }}>{p.reviews} değerlendirme</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom nav */}
+      <BottomNav active={0} />
     </div>
   );
 }
 
 // ─── Guide screen ─────────────────────────────────────────────────────
 function GuideScreen({ route, unknownCity, onBack }: {
-  route: RouteData | null;
+  route: Route | null;
   unknownCity: string;
   onBack: () => void;
 }) {
   const cityLabel = route?.city ?? unknownCity;
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Status bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px 0", fontSize: 12, fontWeight: 600, color: "#111", flexShrink: 0 }}>
-        <span>9:41</span>
-        <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px", display: "flex", alignItems: "center" }}>
-          <div style={{ width: "75%", height: "100%", borderRadius: 2, backgroundColor: "#111" }} />
-        </div>
-      </div>
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <StatusBar />
 
-      {/* Header bar */}
-      <div style={{ padding: "12px 24px 14px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
-        <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 19, border: "none", backgroundColor: "#F7F7F7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+      {/* Header */}
+      <div style={{ padding: "10px 24px 14px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
+        <button
+          onClick={onBack}
+          style={{ width: 38, height: 38, borderRadius: 19, border: "none", backgroundColor: "#F7F7F7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+        >
           <ArrowLeft size={18} color="#333" />
         </button>
         <div style={{ flex: 1 }}>
@@ -334,125 +554,133 @@ function GuideScreen({ route, unknownCity, onBack }: {
             {cityLabel} <span style={{ color: ORANGE }}>Rotası</span>
           </div>
         </div>
-        <div style={{ width: 36, height: 36, borderRadius: 18, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 18, background: `linear-gradient(135deg,${ORANGE},${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Sparkles size={18} color="white" />
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 28px" }}>
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px 24px" }}>
         {route ? (
-          <>
-            {/* "Harika seçim!" banner */}
-            <div style={{ backgroundColor: ORANGE_LIGHT, borderRadius: 16, padding: "14px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>🎉</span>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: ORANGE }}>Harika seçim!</div>
-                <div style={{ fontSize: 12, color: "#666", marginTop: 1 }}>GezIN rehberin hazır. İyi geziler!</div>
-              </div>
-            </div>
-
-            {/* Day cards */}
-            {route.days.map((day, di) => (
-              <DayCard key={di} day={day} index={di} />
-            ))}
-
-            {/* Footer tip */}
-            <div style={{ marginTop: 8, padding: "14px 16px", backgroundColor: "#F7F7F7", borderRadius: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <Sparkles size={15} color={ORANGE} style={{ flexShrink: 0, marginTop: 2 }} />
-              <div style={{ fontSize: 12, color: "#666", lineHeight: 1.55 }}>
-                Başka bir şehir için de rota oluşturmak ister misin? <span style={{ color: ORANGE, fontWeight: 700 }}>Geri dön</span> ve yeni bir şehir seç!
-              </div>
-            </div>
-          </>
+          <RouteContent route={route} />
         ) : (
-          /* Unknown city state */
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48, gap: 14, textAlign: "center" }}>
-            <div style={{ fontSize: 48 }}>🗺️</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>"{cityLabel}" için hazır rota yok</div>
-            <div style={{ fontSize: 13, color: "#888", lineHeight: 1.55, maxWidth: 260 }}>
-              Şu an <span style={{ color: ORANGE, fontWeight: 700 }}>Ankara</span> ve <span style={{ color: ORANGE, fontWeight: 700 }}>Samsun</span> için detaylı rotalarımız var. Diğer şehirler yakında ekleniyor!
-            </div>
-            <button onClick={onBack} style={{ marginTop: 8, backgroundColor: ORANGE, color: "white", border: "none", borderRadius: 14, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-              Geri Dön
-            </button>
-          </div>
+          <UnknownCity city={unknownCity} onBack={onBack} />
         )}
       </div>
 
-      {/* Bottom nav */}
-      <div style={{ margin: "0 20px 24px", backgroundColor: "#111", borderRadius: 28, padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-        {[
-          { icon: <Home size={22} />, active: false },
-          { icon: <Compass size={22} />, active: true },
-          { icon: <Bookmark size={22} />, active: false },
-          { icon: <User size={22} />, active: false },
-        ].map((item, i) => (
-          <div key={i} style={{ color: item.active ? ORANGE : "rgba(255,255,255,0.45)", cursor: "pointer" }}>
-            {item.icon}
-          </div>
-        ))}
-      </div>
+      <BottomNav active={1} />
     </div>
   );
 }
 
-// ─── Day card ─────────────────────────────────────────────────────────
-function DayCard({ day, index }: { day: Day; index: number }) {
+// ─── Route content ────────────────────────────────────────────────────
+function RouteContent({ route }: { route: Route }) {
   return (
-    <div style={{
-      backgroundColor: "#FFFFFF",
-      borderRadius: 20,
-      boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
-      border: "1px solid #F0F0F0",
-      marginBottom: 14,
-      overflow: "hidden",
-    }}>
-      {/* Day header */}
-      <div style={{
-        backgroundColor: index % 2 === 0 ? ORANGE : "#111",
-        padding: "12px 18px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-      }}>
-        <div style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", flexShrink: 0 }}>
-          {index + 1}
+    <>
+      {/* Banner */}
+      <div style={{ backgroundColor: ORANGE_LIGHT, borderRadius: 16, padding: "13px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, animation: "fade-in 0.4s ease forwards" }}>
+        <span style={{ fontSize: 22 }}>🎉</span>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: ORANGE }}>Harika seçim!</div>
+          <div style={{ fontSize: 12, color: "#666", marginTop: 1 }}>GezIN rehberin hazır. İyi geziler!</div>
         </div>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "white", lineHeight: 1.3 }}>{day.title.replace(/^\d+\. Gün — /, "")}</span>
       </div>
 
-      {/* Day items */}
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {day.items.map((item, ii) => (
-          <RouteItem key={ii} item={item} />
+      {route.days.map((day, di) => (
+        <div key={di} style={{ backgroundColor: "#fff", borderRadius: 20, boxShadow: "0 2px 14px rgba(0,0,0,0.07)", border: "1px solid #F0F0F0", marginBottom: 14, overflow: "hidden", animation: `fade-in 0.4s ease ${di * 0.1 + 0.1}s both` }}>
+          {/* Day header */}
+          <div style={{ backgroundColor: di % 2 === 0 ? ORANGE : "#111", padding: "11px 18px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "white", flexShrink: 0 }}>
+              {di + 1}
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "white", lineHeight: 1.3 }}>{day.title}</span>
+          </div>
+          {/* Items */}
+          <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 11 }}>
+            {day.items.map((item, ii) => (
+              <div key={ii} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1.45 }}>{item.icon}</span>
+                <p style={{ fontSize: 13, color: "#444", lineHeight: 1.6, margin: 0 }}>
+                  {item.before}
+                  {item.bold && <strong style={{ color: ORANGE }}>{item.bold}</strong>}
+                  {item.after}
+                  {"bold2" in item && <><strong style={{ color: ORANGE }}>{(item as any).bold2}</strong>{(item as any).after2}</>}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div style={{ padding: "12px 14px", backgroundColor: "#F7F7F7", borderRadius: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <Sparkles size={14} color={ORANGE} style={{ flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.55 }}>
+          Başka bir şehir için rota ister misin? <span style={{ color: ORANGE, fontWeight: 700 }}>Geri dön</span> ve yeni bir şehir seç!
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Unknown city ────────────────────────────────────────────────────
+function UnknownCity({ city, onBack }: { city: string; onBack: () => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48, gap: 14, textAlign: "center", animation: "fade-in 0.4s ease forwards" }}>
+      <div style={{ fontSize: 48 }}>🗺️</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>"{city}" için rota yok</div>
+      <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, maxWidth: 260 }}>
+        Şu an&nbsp;
+        {["Ankara","Samsun","İstanbul","İzmir","Eskişehir","Antalya","Kapadokya","Pamukkale"].map((c, i, arr) => (
+          <span key={c}><span style={{ color: ORANGE, fontWeight: 700 }}>{c}</span>{i < arr.length - 1 ? ", " : ""}</span>
         ))}
+        &nbsp;için rotalarımız hazır.
+      </div>
+      <button onClick={onBack} style={{ marginTop: 8, backgroundColor: ORANGE, color: "white", border: "none", borderRadius: 14, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+        Geri Dön
+      </button>
+    </div>
+  );
+}
+
+// ─── Shared UI ────────────────────────────────────────────────────────
+function StatusBar() {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 24px 0", fontSize: 12, fontWeight: 600, color: "#111", flexShrink: 0 }}>
+      <span>9:41</span>
+      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+          <rect x="0" y="3" width="3" height="9" rx="1" fill="#111" />
+          <rect x="4.5" y="2" width="3" height="10" rx="1" fill="#111" />
+          <rect x="9" y="0" width="3" height="12" rx="1" fill="#111" />
+          <rect x="13.5" y="0" width="3" height="12" rx="1" fill="#111" opacity="0.3" />
+        </svg>
+        <div style={{ width: 22, height: 11, borderRadius: 3, border: "1.5px solid #111", padding: "1px", display: "flex", alignItems: "center" }}>
+          <div style={{ width: "75%", height: "100%", borderRadius: 2, backgroundColor: "#111" }} />
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Route item ───────────────────────────────────────────────────────
-type ItemData = {
-  icon: string;
-  text: string;
-  highlight?: string;
-  text2?: string;
-  highlight2?: string;
-  text2b?: string;
-};
-
-function RouteItem({ item }: { item: ItemData }) {
+function SectionHeader({ title }: { title: string }) {
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-      <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.4 }}>{item.icon}</span>
-      <p style={{ fontSize: 13, color: "#444", lineHeight: 1.6, margin: 0 }}>
-        {item.text}
-        {item.highlight && <strong style={{ color: ORANGE }}>{item.highlight}</strong>}
-        {item.text2}
-        {item.highlight2 && <strong style={{ color: ORANGE }}>{item.highlight2}</strong>}
-        {item.text2b}
-      </p>
+    <div style={{ padding: "18px 24px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 17, fontWeight: 700, color: "#111" }}>{title}</span>
+      <span style={{ fontSize: 13, color: ORANGE, fontWeight: 600, display: "flex", alignItems: "center", gap: 2 }}>Tümünü Gör <ChevronRight size={14} /></span>
+    </div>
+  );
+}
+
+function BottomNav({ active }: { active: number }) {
+  const icons = [<Home size={22} />, <Compass size={22} />, <Bookmark size={22} />, <User size={22} />];
+  return (
+    <div style={{ margin: "auto 20px 24px", backgroundColor: "#111", borderRadius: 28, padding: "13px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, boxShadow: "0 8px 28px rgba(0,0,0,0.18)" }}>
+      {icons.map((icon, i) => (
+        <div key={i} style={{ color: i === active ? ORANGE : "rgba(255,255,255,0.4)", cursor: "pointer", position: "relative" }}>
+          {i === active && <div style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE }} />}
+          {icon}
+        </div>
+      ))}
     </div>
   );
 }
