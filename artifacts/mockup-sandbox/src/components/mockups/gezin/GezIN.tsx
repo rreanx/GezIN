@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Search, MapPin, Heart, Home, Compass, User, Bell,
   Star, ChevronRight, Bookmark, ArrowLeft, Send, Sparkles,
@@ -297,15 +297,16 @@ function ScreenSlide({ children, id, direction }: { children: React.ReactNode; i
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────
-type Screen = "home" | "loading" | "guide";
+type Screen = "home" | "loading" | "guide" | "saved";
 
 export function GezIN() {
-  const [screen, setScreen]         = useState<Screen>("home");
-  const [direction, setDirection]   = useState<Direction>("forward");
-  const [search, setSearch]         = useState("");
-  const [pendingCity, setPending]   = useState("");
-  const [activeRoute, setRoute]     = useState<Route | null>(null);
-  const [unknownCity, setUnknown]   = useState("");
+  const [screen, setScreen]       = useState<Screen>("home");
+  const [direction, setDirection] = useState<Direction>("forward");
+  const [search, setSearch]       = useState("");
+  const [pendingCity, setPending] = useState("");
+  const [activeRoute, setRoute]   = useState<Route | null>(null);
+  const [unknownCity, setUnknown] = useState("");
+  const [saved, setSaved]         = useState<string[]>([]);
 
   const goTo = (city: string) => {
     setPending(city);
@@ -324,7 +325,14 @@ export function GezIN() {
     setScreen("home");
   };
 
-  const screenKey = screen + pendingCity;
+  const goHome = () => { setDirection("back"); setScreen("home"); };
+  const goSaved = () => { setDirection("forward"); setScreen("saved"); };
+
+  const toggleSave = (city: string) => {
+    setSaved((prev) =>
+      prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
+    );
+  };
 
   return (
     <div style={{
@@ -338,11 +346,7 @@ export function GezIN() {
 
       {screen === "home" && (
         <ScreenSlide id="home" direction={direction}>
-          <HomeScreen
-            search={search}
-            onSearchChange={setSearch}
-            onOpen={goTo}
-          />
+          <HomeScreen search={search} onSearchChange={setSearch} onOpen={goTo} onSaved={goSaved} />
         </ScreenSlide>
       )}
 
@@ -357,8 +361,18 @@ export function GezIN() {
           <GuideScreen
             route={activeRoute}
             unknownCity={unknownCity}
+            isSaved={saved.includes(activeRoute?.city ?? unknownCity)}
+            onToggleSave={() => toggleSave(activeRoute?.city ?? unknownCity)}
             onBack={goBack}
+            onHome={goHome}
+            onSaved={goSaved}
           />
+        </ScreenSlide>
+      )}
+
+      {screen === "saved" && (
+        <ScreenSlide id="saved" direction={direction}>
+          <SavedScreen saved={saved} onOpen={goTo} onHome={goHome} onSaved={goSaved} />
         </ScreenSlide>
       )}
     </div>
@@ -368,22 +382,17 @@ export function GezIN() {
 // ─── Loading screen ───────────────────────────────────────────────────
 function LoadingScreen({ city }: { city: string }) {
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#fff", gap: 24 }}>
-      {/* Big icon */}
-      <div style={{ width: 80, height: 80, borderRadius: 40, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 8px 32px rgba(230,126,34,0.3)` }}>
-        <Sparkles size={36} color="white" />
-      </div>
-
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#fff", gap: 20 }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#111", marginBottom: 4 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#111", marginBottom: 8 }}>
           <span style={{ color: ORANGE }}>{city}</span> rotası
         </div>
-        <div style={{ fontSize: 13, color: "#888", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <div style={{ fontSize: 14, color: "#888", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
           planlanıyor
-          <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <span style={{ display: "flex", gap: 5, alignItems: "center" }}>
             {[0, 1, 2].map((i) => (
               <span key={i} style={{
-                width: 6, height: 6, borderRadius: 3,
+                width: 7, height: 7, borderRadius: 4,
                 backgroundColor: ORANGE,
                 display: "inline-block",
                 animation: `dot-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
@@ -397,10 +406,11 @@ function LoadingScreen({ city }: { city: string }) {
 }
 
 // ─── Home screen ──────────────────────────────────────────────────────
-function HomeScreen({ search, onSearchChange, onOpen }: {
+function HomeScreen({ search, onSearchChange, onOpen, onSaved }: {
   search: string;
   onSearchChange: (v: string) => void;
   onOpen: (city: string) => void;
+  onSaved: () => void;
 }) {
   return (
     <div style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
@@ -523,16 +533,20 @@ function HomeScreen({ search, onSearchChange, onOpen }: {
       </div>
 
       {/* Bottom nav */}
-      <BottomNav active={0} />
+      <BottomNav active={0} onHome={() => {}} onSaved={onSaved} />
     </div>
   );
 }
 
 // ─── Guide screen ─────────────────────────────────────────────────────
-function GuideScreen({ route, unknownCity, onBack }: {
+function GuideScreen({ route, unknownCity, isSaved, onToggleSave, onBack, onHome, onSaved }: {
   route: Route | null;
   unknownCity: string;
+  isSaved: boolean;
+  onToggleSave: () => void;
   onBack: () => void;
+  onHome: () => void;
+  onSaved: () => void;
 }) {
   const cityLabel = route?.city ?? unknownCity;
 
@@ -554,9 +568,21 @@ function GuideScreen({ route, unknownCity, onBack }: {
             {cityLabel} <span style={{ color: ORANGE }}>Rotası</span>
           </div>
         </div>
-        <div style={{ width: 36, height: 36, borderRadius: 18, background: `linear-gradient(135deg,${ORANGE},${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Sparkles size={18} color="white" />
-        </div>
+        {/* Save button */}
+        <button
+          onClick={onToggleSave}
+          style={{
+            width: 38, height: 38, borderRadius: 19, border: "none", cursor: "pointer",
+            backgroundColor: isSaved ? ORANGE_LIGHT : "#F7F7F7",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background-color 0.2s",
+            flexShrink: 0,
+          }}
+        >
+          {isSaved
+            ? <Bookmark size={18} color={ORANGE} fill={ORANGE} />
+            : <Bookmark size={18} color="#888" />}
+        </button>
       </div>
 
       {/* Content */}
@@ -568,7 +594,7 @@ function GuideScreen({ route, unknownCity, onBack }: {
         )}
       </div>
 
-      <BottomNav active={1} />
+      <BottomNav active={1} onHome={onHome} onSaved={onSaved} />
     </div>
   );
 }
@@ -613,7 +639,7 @@ function RouteContent({ route }: { route: Route }) {
       ))}
 
       <div style={{ padding: "12px 14px", backgroundColor: "#F7F7F7", borderRadius: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <Sparkles size={14} color={ORANGE} style={{ flexShrink: 0, marginTop: 2 }} />
+        <span style={{ fontSize: 16, flexShrink: 0 }}>✨</span>
         <div style={{ fontSize: 12, color: "#666", lineHeight: 1.55 }}>
           Başka bir şehir için rota ister misin? <span style={{ color: ORANGE, fontWeight: 700 }}>Geri dön</span> ve yeni bir şehir seç!
         </div>
@@ -638,6 +664,75 @@ function UnknownCity({ city, onBack }: { city: string; onBack: () => void }) {
       <button onClick={onBack} style={{ marginTop: 8, backgroundColor: ORANGE, color: "white", border: "none", borderRadius: 14, padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
         Geri Dön
       </button>
+    </div>
+  );
+}
+
+// ─── Saved tours screen ───────────────────────────────────────────────
+function SavedScreen({ saved, onOpen, onHome, onSaved }: {
+  saved: string[];
+  onOpen: (city: string) => void;
+  onHome: () => void;
+  onSaved: () => void;
+}) {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <StatusBar />
+
+      {/* Header */}
+      <div style={{ padding: "14px 24px 14px", flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
+        <div style={{ fontSize: 11, color: "#AAA", fontWeight: 500 }}>GezIN</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#111", lineHeight: 1.2 }}>
+          Kaydedilen <span style={{ color: ORANGE }}>Turlar</span>
+        </div>
+      </div>
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 24px" }}>
+        {saved.length === 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 56, gap: 14, textAlign: "center", animation: "fade-in 0.4s ease forwards" }}>
+            <div style={{ fontSize: 48 }}>🔖</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>Henüz kaydedilen tur yok</div>
+            <div style={{ fontSize: 13, color: "#888", maxWidth: 240, lineHeight: 1.55 }}>
+              Bir rota ekranında sağ üstteki <span style={{ color: ORANGE, fontWeight: 700 }}>kaydet</span> simgesine bas!
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, animation: "fade-in 0.35s ease forwards" }}>
+            {saved.map((city, i) => (
+              <div
+                key={city}
+                onClick={() => onOpen(city)}
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 20,
+                  border: "1px solid #F0F0F0",
+                  boxShadow: "0 2px 14px rgba(0,0,0,0.07)",
+                  padding: "16px 20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  cursor: "pointer",
+                  animation: `fade-in 0.35s ease ${i * 0.07}s both`,
+                }}
+              >
+                <div style={{ width: 46, height: 46, borderRadius: 23, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <MapPin size={20} color="white" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>{city}</div>
+                  <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Kaydedilmiş rota · Türkiye</div>
+                </div>
+                <div style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: ORANGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ChevronRight size={16} color={ORANGE} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <BottomNav active={2} onHome={onHome} onSaved={onSaved} />
     </div>
   );
 }
@@ -671,14 +766,19 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-function BottomNav({ active }: { active: number }) {
-  const icons = [<Home size={22} />, <Compass size={22} />, <Bookmark size={22} />, <User size={22} />];
+function BottomNav({ active, onHome, onSaved }: { active: number; onHome: () => void; onSaved: () => void; }) {
+  const tabs = [
+    { icon: <Home size={22} />,     onClick: onHome },
+    { icon: <Compass size={22} />,  onClick: () => {} },
+    { icon: <Bookmark size={22} />, onClick: onSaved },
+    { icon: <User size={22} />,     onClick: () => {} },
+  ];
   return (
-    <div style={{ margin: "auto 20px 24px", backgroundColor: "#111", borderRadius: 28, padding: "13px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, boxShadow: "0 8px 28px rgba(0,0,0,0.18)" }}>
-      {icons.map((icon, i) => (
-        <div key={i} style={{ color: i === active ? ORANGE : "rgba(255,255,255,0.4)", cursor: "pointer", position: "relative" }}>
+    <div style={{ margin: "0 20px 24px", backgroundColor: "#111", borderRadius: 28, padding: "13px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, boxShadow: "0 8px 28px rgba(0,0,0,0.18)" }}>
+      {tabs.map((tab, i) => (
+        <div key={i} onClick={tab.onClick} style={{ color: i === active ? ORANGE : "rgba(255,255,255,0.4)", cursor: "pointer", position: "relative" }}>
           {i === active && <div style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: 2, backgroundColor: ORANGE }} />}
-          {icon}
+          {tab.icon}
         </div>
       ))}
     </div>
