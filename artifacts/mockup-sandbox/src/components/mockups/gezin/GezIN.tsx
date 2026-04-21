@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Search, MapPin, Heart, Home, Compass, User, Bell,
-  Star, ChevronRight, Bookmark, ArrowLeft, Send, Sparkles,
+  Star, ChevronRight, Bookmark, ArrowLeft, Send, Sparkles, Share2,
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────
@@ -371,7 +371,7 @@ function ScreenSlide({ children, id, direction }: { children: React.ReactNode; i
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────
-type Screen = "home" | "loading" | "guide" | "saved" | "regions";
+type Screen = "home" | "loading" | "guide" | "saved" | "regions" | "notifications";
 
 export function GezIN() {
   const [screen, setScreen]       = useState<Screen>("home");
@@ -395,10 +395,11 @@ export function GezIN() {
     }, 1400);
   };
 
-  const goBack  = () => { setDirection("back");    setScreen("home"); };
-  const goHome  = () => { setDirection("back");    setScreen("home"); };
-  const goSaved = () => { setDirection("forward"); setScreen("saved"); };
-  const goRegions = () => { setDirection("forward"); setScreen("regions"); };
+  const goBack          = () => { setDirection("back");    setScreen("home"); };
+  const goHome          = () => { setDirection("back");    setScreen("home"); };
+  const goSaved         = () => { setDirection("forward"); setScreen("saved"); };
+  const goRegions       = () => { setDirection("forward"); setScreen("regions"); };
+  const goNotifications = () => { setDirection("forward"); setScreen("notifications"); };
 
   const toggleSave = (city: string) => {
     setSaved((prev) =>
@@ -418,7 +419,13 @@ export function GezIN() {
 
       {screen === "home" && (
         <ScreenSlide id="home" direction={direction}>
-          <HomeScreen search={search} onSearchChange={setSearch} onOpen={goTo} onSaved={goSaved} onRegions={goRegions} />
+          <HomeScreen search={search} onSearchChange={setSearch} onOpen={goTo} onSaved={goSaved} onRegions={goRegions} onNotifications={goNotifications} />
+        </ScreenSlide>
+      )}
+
+      {screen === "notifications" && (
+        <ScreenSlide id="notifications" direction={direction}>
+          <NotificationsScreen onBack={goHome} onHome={goHome} onSaved={goSaved} />
         </ScreenSlide>
       )}
 
@@ -484,12 +491,13 @@ function LoadingScreen({ city }: { city: string }) {
 }
 
 // ─── Home screen ──────────────────────────────────────────────────────
-function HomeScreen({ search, onSearchChange, onOpen, onSaved, onRegions }: {
+function HomeScreen({ search, onSearchChange, onOpen, onSaved, onRegions, onNotifications }: {
   search: string;
   onSearchChange: (v: string) => void;
   onOpen: (city: string) => void;
   onSaved: () => void;
   onRegions: () => void;
+  onNotifications: () => void;
 }) {
   return (
     <div style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
@@ -507,7 +515,7 @@ function HomeScreen({ search, onSearchChange, onOpen, onSaved, onRegions }: {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ORANGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+          <div onClick={onNotifications} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ORANGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", cursor: "pointer" }}>
             <Bell size={18} color={ORANGE} />
             <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ORANGE, position: "absolute", top: 9, right: 9, border: "1.5px solid white" }} />
           </div>
@@ -516,17 +524,6 @@ function HomeScreen({ search, onSearchChange, onOpen, onSaved, onRegions }: {
               <User size={20} color="white" />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* AI Banner */}
-      <div style={{ margin: "16px 24px 0", borderRadius: 20, background: `linear-gradient(135deg, ${ORANGE}, ${ORANGE_DARK})`, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: `0 6px 24px rgba(230,126,34,0.25)` }}>
-        <div style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Sparkles size={22} color="white" />
-        </div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>Yapay Zeka Rehberin</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>Şehre tıkla, rotanı anında gör!</div>
         </div>
       </div>
 
@@ -647,6 +644,17 @@ function GuideScreen({ route, unknownCity, isSaved, onToggleSave, onBack, onHome
             {cityLabel} <span style={{ color: ORANGE }}>Rotası</span>
           </div>
         </div>
+        {/* Share button */}
+        <button
+          style={{
+            width: 38, height: 38, borderRadius: 19, border: "none", cursor: "pointer",
+            backgroundColor: "#F7F7F7",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Share2 size={17} color="#888" />
+        </button>
         {/* Save button */}
         <button
           onClick={onToggleSave}
@@ -843,6 +851,77 @@ function SectionHeader({ title, onAll }: { title: string; onAll?: () => void }) 
       <span onClick={onAll} style={{ fontSize: 13, color: ORANGE, fontWeight: 600, display: "flex", alignItems: "center", gap: 2, cursor: onAll ? "pointer" : "default" }}>
         Tümünü Gör <ChevronRight size={14} />
       </span>
+    </div>
+  );
+}
+
+// ─── Notifications screen ─────────────────────────────────────────────
+const NOTIFS = [
+  { icon: "🗺️", title: "Yeni rota eklendi!", body: "Trabzon için 3 günlük rota hazır.", time: "2 dk önce", unread: true },
+  { icon: "❤️", title: "Kapadokya favori listende!", body: "Kaydettiğin Kapadokya rotasına bak.", time: "1 sa önce", unread: true },
+  { icon: "🌤️", title: "Hava durumu uyarısı", body: "İstanbul'da hafta sonu yağmur bekleniyor.", time: "3 sa önce", unread: false },
+  { icon: "🎉", title: "GezIN'e hoş geldin!", body: "İlk rotanı oluşturmaya hazır mısın?", time: "Dün", unread: false },
+];
+
+function NotificationsScreen({ onBack, onHome, onSaved }: {
+  onBack: () => void;
+  onHome: () => void;
+  onSaved: () => void;
+}) {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <StatusBar />
+
+      {/* Header */}
+      <div style={{ padding: "10px 24px 14px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0, borderBottom: "1px solid #F3F3F3" }}>
+        <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 19, border: "none", backgroundColor: "#F7F7F7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          <ArrowLeft size={18} color="#333" />
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: "#AAA", fontWeight: 500 }}>GezIN</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#111", lineHeight: 1.2 }}>
+            Bildirimler
+          </div>
+        </div>
+        <div style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: ORANGE, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "white" }}>2</span>
+        </div>
+      </div>
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 0 24px" }}>
+        {NOTIFS.map((n, i) => (
+          <div
+            key={i}
+            style={{
+              padding: "14px 24px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 14,
+              backgroundColor: n.unread ? "#FFFBF7" : "transparent",
+              borderBottom: "1px solid #F5F5F5",
+              animation: `fade-in 0.3s ease ${i * 0.06}s both`,
+              cursor: "pointer",
+            }}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: n.unread ? ORANGE_LIGHT : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+              {n.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: n.unread ? 700 : 600, color: "#111" }}>{n.title}</div>
+                <div style={{ fontSize: 11, color: "#BBB", whiteSpace: "nowrap", flexShrink: 0 }}>{n.time}</div>
+              </div>
+              <div style={{ fontSize: 12, color: "#666", marginTop: 3, lineHeight: 1.45 }}>{n.body}</div>
+            </div>
+            {n.unread && (
+              <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ORANGE, flexShrink: 0, marginTop: 6 }} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <BottomNav active={0} onHome={onHome} onSaved={onSaved} />
     </div>
   );
 }
