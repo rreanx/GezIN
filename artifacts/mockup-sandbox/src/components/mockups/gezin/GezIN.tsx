@@ -51,7 +51,7 @@ const ANIM_CSS = `
 // ─── Route data ───────────────────────────────────────────────────────
 type Item  = { icon: string; bold?: string; after?: string; before?: string; bold2?: string; after2?: string };
 type Day   = { title: string; items: Item[] };
-type Route = { city: string; days: Day[] };
+type Route = { city: string; days: Day[]; ai?: boolean; text?: string  };
 
 const ROUTES: Record<string, Route> = {
   ankara: { city: "Ankara", days: [
@@ -270,15 +270,68 @@ export function GezIN() {
 
   const theme = darkMode ? DARK : LIGHT;
 
-  const goTo = (city: string) => {
-    setSearch(city); setPending(city);
-    setDirection("forward"); setScreen("loading");
-    setRecent(prev => [city, ...prev.filter(c => c !== city)].slice(0, 8));
-    setTimeout(() => {
-      const r = findRoute(city); setRoute(r);
-      setUnknown(r ? "" : city); setScreen("guide");
-    }, 1400);
-  };
+ const goTo = (city: string) => {
+  setSearch(city);
+  setPending(city);
+  setDirection("forward");
+  setScreen("loading");
+  setRecent(prev => [city, ...prev.filter(c => c !== city)].slice(0, 8));
+  setRoute(null);
+  setUnknown("");
+
+  let fullText = "";
+
+  fetch("/api/gezin/guide", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ city }),
+  })
+    .then(async (res) => {
+      if (!res.ok || !res.body) {
+        const r = findRoute(city);
+        setRoute(r);
+        setUnknown(r ? "" : city);
+        setScreen("guide");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      setScreen("guide");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value);
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            if (parsed.content) {
+              fullText += parsed.content;
+              setRoute({ ai: true, text: fullText, city } as any);
+            }
+            if (parsed.error) {
+              const r = findRoute(city);
+              setRoute(r);
+              setUnknown(r ? "" : city);
+            }
+          } catch {
+            // chunk parse hatası, devam et
+          }
+        }
+      }
+    })
+    .catch(() => {
+      const r = findRoute(city);
+      setRoute(r);
+      setUnknown(r ? "" : city);
+      setScreen("guide");
+    });
+};
 
   const goBack          = () => { setDirection("back");    setScreen("home"); };
   const goHome          = () => { setDirection("back");    setScreen("home"); };
@@ -579,6 +632,30 @@ function GuideScreen({route,unknownCity,isSaved,onToggleSave,onBack,onHome,onSav
 
 function RouteContent({route}:{route:Route}) {
   const {ORANGE,ORANGE_LIGHT} = useTheme();
+
+  if (route.ai && route.text) {
+    return (
+      <>
+        <div style={{backgroundColor:ORANGE_LIGHT,borderRadius:16,padding:"13px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10,animation:"fade-in 0.4s ease forwards"}}>
+          <span style={{fontSize:22}}>🤖</span>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:ORANGE}}>AI Rehberin hazır!</div>
+            <div style={{fontSize:12,color:"#888",marginTop:1}}>GezIN yapay zeka ile oluşturuldu.</div>
+          </div>
+        </div>
+        <div style={{
+          fontSize:13,
+          lineHeight:1.8,
+          color:"#333",
+          whiteSpace:"pre-wrap",
+          padding:"4px 0"
+        }}>
+          {route.text}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div style={{backgroundColor:ORANGE_LIGHT,borderRadius:16,padding:"13px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10,animation:"fade-in 0.4s ease forwards"}}>

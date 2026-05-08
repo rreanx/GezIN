@@ -16,7 +16,7 @@ router.post("/api/gezin/guide", async (req, res) => {
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gemini-2.0-flash",
       max_completion_tokens: 8192,
       stream: true,
       messages: [
