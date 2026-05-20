@@ -62,11 +62,13 @@ GOOGLE_MAPS_API_KEY=...   # henüz kullanılmıyor
 - [x] Mockup UI tamamlandı
 - [x] AI rota üretimi (SSE streaming)
 - [x] GitHub entegrasyonu
-- [ ] Expo Go mobil test (ngrok tunnel)
+- [x] Expo Go mobil test (ngrok tunnel)
 - [ ] Google Maps entegrasyonu
-- [ ] Auth sistemi (Clerk / Supabase)
+- [x] Auth sistemi (Clerk / Supabase)
 - [ ] Rezervasyon API'leri
 - [ ] Topluluk özellikleri
+- [ ] Yürüyüş ve bisiklet rotaları 
+
 
 ---
 
