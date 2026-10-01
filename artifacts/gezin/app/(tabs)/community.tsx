@@ -29,7 +29,7 @@ const GROUPS = [
     id: "g2",
     name: "Kapadokya Kaşifleri",
     members: 876,
-    image: require("@/assets/images/cappadocia.png"),
+    image: require("@/assets/images/nevşehir.png"),
     category: "Doğa",
   },
   {
@@ -43,7 +43,7 @@ const GROUPS = [
     id: "g4",
     name: "Karadeniz Seyahat",
     members: 654,
-    image: require("@/assets/images/karadeniz.png"),
+    image: require("@/assets/images/rize.png"),
     category: "Doğa",
   },
 ];
@@ -134,10 +134,10 @@ export default function CommunityScreen() {
 
         {/* Groups */}
         <SectionHeader
-          title="Gruplar"
-          right="Tümü"
-          onRight={() => {}}
-        />
+  title="Gruplar"
+  actionLabel="Tümü"
+  onAction={() => {}}
+/>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -237,7 +237,11 @@ export default function CommunityScreen() {
         </ScrollView>
 
         {/* Feed */}
-        <SectionHeader title="Akış" right="" onRight={() => {}} />
+        <SectionHeader
+  title="Gruplar"
+  actionLabel="Tümü"
+  onAction={() => {}}
+/>
         <View style={styles.feedContainer}>
           {FEED.map((post) => (
             <View
